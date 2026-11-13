@@ -1164,19 +1164,21 @@ const kolb = new THREE.Group();
   // high wing: fabric panels, rib tapes, working ailerons, tip lights, pitot, registration
   const C = 0.6, wing = new THREE.Group(); wing.position.set(0, 0.42, -0.7); kolb.add(wing);
   const HINGE = 0.74, hingeY = yc(HINGE) * C;
+  // STOL wing: TIP is the half span in model units (was 2.05 before the long-wing version)
+  const TIP = 2.05 * 1.3;
   add(twoTone(wingSeg(C, 0, HINGE, 1.9)), fabricW, 0, 0, 0, wing);
   const ail = [];
   [-1, 1].forEach(sd => {
-    add(twoTone(wingSeg(C, 0, HINGE, 1.1)), fabricW, sd * 1.5, 0, 0, wing);
+    add(twoTone(wingSeg(C, 0, HINGE, TIP - 0.95)), fabricW, sd * (TIP + 0.95) / 2, 0, 0, wing);
     // full-span flaperon: one surface root to tip, works as aileron and as flap (up to 50°)
-    const piv = new THREE.Group(); piv.position.set(sd * 1.035, hingeY, HINGE * C); wing.add(piv);
-    const ag = wingSeg(C, HINGE + 0.005, 1, 2.0); ag.translate(0, -hingeY, -HINGE * C);
+    const piv = new THREE.Group(); piv.position.set(sd * (TIP + 0.02) / 2, hingeY, HINGE * C); wing.add(piv);
+    const ag = wingSeg(C, HINGE + 0.005, 1, TIP - 0.05); ag.translate(0, -hingeY, -HINGE * C);
     add(twoTone(ag), fabricW, 0, 0, 0, piv);
     ail.push(piv);
   });
   const ribFull = wingSeg(C, 0, 1, 0.012, 0.136), ribFront = wingSeg(C, 0, HINGE, 0.012, 0.136);
-  for (let i = -6; i <= 6; i++) add(ribFront, tape, i * 0.3, 0, 0, wing);
-  [-1, 1].forEach(sd => add(wingSeg(C, 0, 1, 0.02, 0.14), tape, sd * 2.05, 0, 0, wing));
+  { const nr = Math.floor(TIP / 0.3 - 0.5); for (let i = -nr; i <= nr; i++) add(ribFront, tape, i * 0.3, 0, 0, wing); }
+  [-1, 1].forEach(sd => add(wingSeg(C, 0, 1, 0.02, 0.14), tape, sd * TIP, 0, 0, wing));
   kolb.userData.ailL = ail[0]; kolb.userData.ailR = ail[1];
   add(new THREE.BoxGeometry(0.5, 0.1, 0.66), red, 0, 0.055, 0.3, wing);
   add(new THREE.BoxGeometry(0.52, 0.06, 0.08), red, 0, 0.03, -0.01, wing);
@@ -1191,16 +1193,16 @@ const kolb = new THREE.Group();
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     sp.scale.setScalar(size); sp.position.set(x, y, z); parent.add(sp); return sp;
   };
-  add(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2a2a }), -2.07, 0.03, 0.12, wing);
-  add(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x2aff5a }), 2.07, 0.03, 0.12, wing);
-  glow(0xff3030, 0.35, wing, -2.08, 0.03, 0.12); glow(0x30ff60, 0.35, wing, 2.08, 0.03, 0.12);
-  kolb.userData.strobes = [glow(0xffffff, 1.1, wing, -2.08, 0.03, 0.45), glow(0xffffff, 1.1, wing, 2.08, 0.03, 0.45), glow(0xffffff, 0.9, kolb, 0, 0.94, 1.98)];
+  add(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2a2a }), -TIP - 0.02, 0.03, 0.12, wing);
+  add(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x2aff5a }), TIP + 0.02, 0.03, 0.12, wing);
+  glow(0xff3030, 0.35, wing, -TIP - 0.03, 0.03, 0.12); glow(0x30ff60, 0.35, wing, TIP + 0.03, 0.03, 0.12);
+  kolb.userData.strobes = [glow(0xffffff, 1.1, wing, -TIP - 0.03, 0.03, 0.45), glow(0xffffff, 1.1, wing, TIP + 0.03, 0.03, 0.45), glow(0xffffff, 0.9, kolb, 0, 0.94, 1.98)];
 
   // struts
   [-1, 1].forEach(sd => {
-    tube([sd * 0.2, -0.3, -0.55], [sd * 1.2, 0.4, -0.62], 0.018, alu);
-    tube([sd * 0.2, -0.3, -0.4], [sd * 1.2, 0.4, -0.3], 0.018, alu);
-    tube([sd * 0.78, 0.1, -0.59], [sd * 0.78, 0.4, -0.6], 0.008, alu);
+    tube([sd * 0.2, -0.3, -0.55], [sd * 1.55, 0.4, -0.62], 0.018, alu);
+    tube([sd * 0.2, -0.3, -0.4], [sd * 1.55, 0.4, -0.3], 0.018, alu);
+    tube([sd * 1.0, 0.115, -0.59], [sd * 1.0, 0.4, -0.6], 0.008, alu);
   });
 
   // two-stroke twin with belt redrive
@@ -1274,18 +1276,22 @@ const kolb = new THREE.Group();
   kolb.userData.elev = elev; kolb.userData.rud = rud;
 
   // taildragger gear
-  const tire = new THREE.TorusGeometry(0.075, 0.032, 12, 26); tire.rotateY(Math.PI / 2);
-  const hub = new THREE.CylinderGeometry(0.045, 0.045, 0.05, 16); hub.rotateZ(Math.PI / 2);
-  const brk = new THREE.CylinderGeometry(0.05, 0.05, 0.006, 16); brk.rotateZ(Math.PI / 2);
-  [-1, 1].forEach(sd => {
-    tube([sd * 0.24, -0.3, -0.6], [sd * 0.4, -0.5, -0.62], 0.02, alu);
-    add(tire, rubber, sd * 0.42, -0.52, -0.62);
-    add(hub, alu, sd * 0.42, -0.52, -0.62);
-    add(brk, steel, sd * 0.39, -0.52, -0.62);
+  // bush gear: fat low-pressure tundra tires on long spring legs. Each leg is its own group hinged at the
+  // fuselage so the render loop can swing it up and out as the physics compresses that wheel.
+  const tire = new THREE.TorusGeometry(0.11, 0.085, 14, 28); tire.rotateY(Math.PI / 2);
+  const hub = new THREE.CylinderGeometry(0.05, 0.05, 0.13, 16); hub.rotateZ(Math.PI / 2);
+  const brk = new THREE.CylinderGeometry(0.045, 0.045, 0.006, 16); brk.rotateZ(Math.PI / 2);
+  kolb.userData.gear = [-1, 1].map(sd => {
+    const leg = new THREE.Group(); leg.position.set(sd * 0.24, -0.3, -0.6); kolb.add(leg);
+    tube([0, 0, 0], [sd * 0.2, -0.24, -0.02], 0.022, alu, leg, 0.016);
+    add(tire, rubber, sd * 0.26, -0.26, -0.02, leg);
+    add(hub, alu, sd * 0.26, -0.26, -0.02, leg);
+    add(brk, steel, sd * 0.17, -0.26, -0.02, leg);
+    return leg;
   });
-  tube([0, 0.12, 1.95], [0, -0.04, 2.03], 0.01, steel);
-  const tt = new THREE.TorusGeometry(0.03, 0.013, 8, 16); tt.rotateY(Math.PI / 2);
-  add(tt, rubber, 0, -0.06, 2.04);
+  tube([0, 0.12, 1.95], [0, -0.05, 2.03], 0.01, steel);
+  const tt = new THREE.TorusGeometry(0.04, 0.02, 8, 16); tt.rotateY(Math.PI / 2);
+  add(tt, rubber, 0, -0.075, 2.04);
 
   kolb.scale.setScalar(1.4);
 }
@@ -1696,9 +1702,12 @@ const hardPts = a => a.map(q => new V3(...q));
 const AIRCRAFT = {
   kolb: { name: 'Kolb Mark III', model: kolb,
     parts: { props: [{ g: KP.prop, axis: 'z', rate: 60 }], discs: [KP.disc], ailL: KP.ailL, ailR: KP.ailR, elev: KP.elev, rud: KP.rud, flaps: [], strobes: KP.strobes, pilot: KP.pilot, panelTex: KP.panelTex, sticks: [KP.stick], yokes: [], throttleLever: KP.throttleLever },
-    M: 250, S: 14, I: new V3(420, 650, 480),
-    wheels: [{ p: new V3(-0.42, -0.627, -0.62).multiplyScalar(1.4), k: 26000, c: 3200, steer: false }, { p: new V3(0.42, -0.627, -0.62).multiplyScalar(1.4), k: 26000, c: 3200, steer: false }, { p: new V3(0, -0.103, 2.04).multiplyScalar(1.4), k: 9000, c: 1100, steer: true }],
-    hard: hardPts([[-2.05, 0.42, -0.4], [2.05, 0.42, -0.4], [0, -0.22, -1.47], [0, -0.34, -0.6], [0, 0.92, -0.38], [0, 0.92, 1.95], [-0.75, 0.14, 1.9], [0.75, 0.14, 1.9], [0, 0.4, -0.03]].map(q => q.map(v => v * 1.4))),
+    M: 250, S: 18, I: new V3(560, 760, 480),
+    // bush gear: soft, lightly damped springs (it sags, flexes and bounces), k2 stiffens them deep in the travel
+    // so a firm arrival doesn't put the belly on the ground, and hardV is the touchdown speed the gear survives
+    wheels: [{ p: new V3(-0.5, -0.755, -0.62).multiplyScalar(1.4), k: 10000, k2: 40000, c: 600, steer: false }, { p: new V3(0.5, -0.755, -0.62).multiplyScalar(1.4), k: 10000, k2: 40000, c: 600, steer: false }, { p: new V3(0, -0.135, 2.04).multiplyScalar(1.4), k: 6000, c: 500, steer: true }],
+    hardV: 6, gear: KP.gear,
+    hard: hardPts([[-2.665, 0.42, -0.4], [2.665, 0.42, -0.4], [0, -0.22, -1.47], [0, -0.34, -0.6], [0, 0.92, -0.38], [0, 0.92, 1.95], [-0.75, 0.14, 1.9], [0.75, 0.14, 1.9], [0, 0.4, -0.03]].map(q => q.map(v => v * 1.4))),
     thrust: 1700, vmax: 55, cl0: 0.25, aStall: 0.26, cd0: 0.045, gn: { elev: 5.5, ail: 10, rud: 4, stab: 22, beta: 7, damp: [5, 3, 4] }, vref: 25, trim: 0.05, flaps: true, flaperon: true, flapMax: 50, flapSteps: 5, flapCL: 1.0, flapCD: 0.22,
     cam: { d: 12, h: 3.2 }, size: 9, eye: new V3(0, 0.28, -0.5).multiplyScalar(1.4), wingCam: new V3(-1.65, 0.62, -0.1).multiplyScalar(1.4),
     panel: { asi: [100, [0, 20, 40, 60, 80, 100], [[26, 32, '#ffffff'], [32, 70, '#2fbf5a'], [70, 90, '#f5c400'], [90, 100, '#e23b3b']]], eng: 'rpm7' },
@@ -2907,6 +2916,7 @@ function stepPlane(dt) {
     const pt = P.pos.clone().add(r);
     let d, gN, lcWant = 0;
     const lc = LOOPS.length ? loopContact(pt, up, P.pos) : null;
+    wh.cmp = 0;
     if (lc) loopHit = true;
     if (lc) {
       d = lc.d; gN = lc.n;
@@ -2923,8 +2933,9 @@ function stepPlane(dt) {
     contact++;
     const vp = P.v.clone().add(wW.clone().cross(r));
     const vpn = vp.dot(gN);
-    if (!lc && vpn < -(A.car ? 15 : 4.5)) { crash('Hard landing −50'); return; }
-    const N = Math.max(0, wh.k * d - wh.c * vpn);
+    if (!lc && vpn < -(A.car ? 15 : A.hardV || 4.5)) { crash('Hard landing −50'); return; }
+    wh.cmp = d;
+    const N = Math.max(0, wh.k * d + (wh.k2 || 0) * d * d - wh.c * vpn);
     const fh = fwd.clone();
     if (wh.steer) fh.applyAxisAngle(up, wh.front ? expo(P.steer) * steerLock() : -ctl.y * 0.45 / (1 + P.v.lengthSq() / 30));
     fh.addScaledVector(gN, -fh.dot(gN));
@@ -3366,6 +3377,8 @@ function loop(now) {
     const ph = now % 1300, on = ph < 60 || (ph > 170 && ph < 230);
     (pt.strobes || []).forEach(o => { o.visible = on; });
     (pt.flaps || []).forEach(f => { f.rotation.x = P.flap * 0.55; });
+    // sprung gear legs swing up and out by however far the physics has that wheel compressed
+    if (AC.gear) AC.gear.forEach((g, i) => { const a = Math.min(0.8, (AC.wheels[i].cmp || 0) / 1.4 / 0.26) * (i ? 1 : -1); g.rotation.z += (a - g.rotation.z) * Math.min(1, dt * 30); });
     const bv = Math.min(1.8, P.boost || 1);
     if (pt.ailL) { const fr = AC.flaperon ? P.flap * AC.flapMax * Math.PI / 180 : 0, a = ctl.r * 0.35 * Math.min(1.6, TW.ail) * bv; pt.ailL.rotation.x = fr - a; pt.ailR.rotation.x = fr + a; }
     if (pt.elev) pt.elev.rotation.x = -(ctl.p * Math.min(1.6, TW.elev) * bv + (AC.heli ? 0 : P.trim * 0.35)) * (AC.heli ? 0.15 : 0.4);
