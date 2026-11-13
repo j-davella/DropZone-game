@@ -168,7 +168,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
         <dt><kbd>K</kbd></dt><dd>Brake, then reverse</dd>
         <dt><kbd>J</kbd> <kbd>L</kbd></dt><dd>Steer left / right</dd>
         <dt><kbd>B</kbd></dt><dd>Handbrake (swing the tail)</dd>
-        <dt><kbd>R</kbd></dt><dd>Thrusters: lift off, then fly it with W A S D</dd>
+        <dt><kbd>R</kbd></dt><dd>Thrusters: lift off, then I / K fly it forward / back, W A S D tilt, Q E turn. Let go and it levels and stops</dd>
         <dt>Hydrofoil</dt><dd>Same keys: I throttle, K reverse, J/L rudder. Get past about 25 km/h and it climbs up onto its foils</dd>
         <dt>Loops</dt><dd>Take the orange lane on the left at 100+ km/h. Too slow and you fall off the top</dd>
       </dl></section>
@@ -2850,7 +2850,26 @@ function stepPlane(dt) {
       carDrive = gas ? Math.min(M * 12, 750000 * TW.power / Math.max(Math.abs(vf), 1)) : (brk && vf <= 0.5 ? -M * 4 : 0);
       if (P.wheels >= 2) F.addScaledVector(up, -M * 0.0006 * vf * vf);
     }
-    ang.set(kk * (expo(ctl.p) * 0.9 * TW.elev * boostF - P.w.x), kk * (expo(ctl.y) * 1.0 * TW.rud * boostF + turn - P.w.y), kk * (expo(ctl.r) * 1.2 * TW.ail * boostF - P.w.z));
+    let rP = expo(ctl.p) * 0.9 * TW.elev * boostF, rR = expo(ctl.r) * 1.2 * TW.ail * boostF, vane = 0;
+    if (A.car && P.wheels === 0 && P.thrArm) {
+      // flying car: W/S/A/D tilt it to a limited angle and it levels when released (it can't roll onto its roof),
+      // I/K push it forward/back, real air drag plus an air brake when coasting so it stops when you let go,
+      // and the nose follows where it is going. A plain jump with the thrusters off keeps none of this.
+      const fh = new V3(fwd.x, 0, fwd.z), thr = (k('KeyI') ? 1 : 0) - (k('KeyK') ? 1 : 0);
+      if (fh.lengthSq() > 1e-4) {
+        fh.normalize();
+        F.addScaledVector(fh, M * 9 * TW.power * thr);
+        const side = new V3(-fh.z, 0, fh.x);
+        F.addScaledVector(side, -M * 1.5 * Math.min(1, hs / 15) * vaW.dot(side));
+      }
+      F.addScaledVector(vaW, -M * (0.05 + 0.0006 * vaW.length()));
+      if (!thr && Math.abs(ctl.p) < 0.1) { F.x -= M * 0.2 * vaW.x; F.z -= M * 0.2 * vaW.z; }
+      const cl = v => Math.max(-2, Math.min(2, v));
+      rP = cl((expo(ctl.p) * 0.45 * boostF - e.x) * 3);
+      rR = cl((expo(ctl.r) * 0.8 * boostF - e.z) * 3);
+      vane = -1.5 * beta * Math.min(1, Math.max(0, (hs - 5) / 10));
+    }
+    ang.set(kk * (rP - P.w.x), kk * (expo(ctl.y) * 1.0 * TW.rud * boostF + turn + vane - P.w.y), kk * (rR - P.w.z));
   } else {
     if (V > 1) {
       const f = -vb.z;
