@@ -2192,6 +2192,17 @@ function buildBuggy() {
   box(0.3, 0.09, 0.03, dark, 0, 0.0, -1.535); T([-0.42, -0.1, -1.6], [0.42, -0.1, -1.6], 0.03); T([-0.42, -0.06, 1.5], [0.42, -0.06, 1.5], 0.03);
   { const sp = pivot(g, 0, 0.56, 0.98); sp.rotation.x = -1.15;
     mk(new THREE.TorusGeometry(0.25, 0.125, 10, 22), rub, sp); mk(new THREE.CylinderGeometry(0.19, 0.19, 0.16, 14).rotateX(Math.PI / 2), alu, sp); }
+  // downforce fans: a ducted fan in a pod on each sill, between the wheels. They suck the car down while the wings are folded.
+  parts.fans = [];
+  [-1, 1].forEach(sd => {
+    const pod = pivot(g, sd * 0.6, -0.1, 0.02);
+    mk(new THREE.CylinderGeometry(0.23, 0.25, 0.13, 24, 1, true), (() => { const m = dark.clone(); m.side = THREE.DoubleSide; return m; })(), pod);
+    mk(new THREE.TorusGeometry(0.235, 0.022, 8, 28).rotateX(Math.PI / 2), blue, pod, 0, 0.065, 0);
+    box(0.44, 0.012, 0.02, alu, 0, 0.07, 0, pod); box(0.02, 0.012, 0.44, alu, 0, 0.07, 0, pod);
+    const fan = new THREE.Group(); pod.add(fan); parts.fans.push(fan);
+    mk(new THREE.CylinderGeometry(0.055, 0.055, 0.08, 12), alu, fan);
+    for (let i = 0; i < 7; i++) { const bl = pivot(fan, 0, 0, 0); bl.rotation.y = i / 7 * Math.PI * 2; box(0.075, 0.008, 0.17, white, 0, 0, 0.13, bl).rotation.z = 0.5; }
+  });
   // roll cage, roof panel and light bar
   [-1, 1].forEach(sd => {
     T([sd * 0.36, 0.3, -0.52], [sd * 0.32, 0.88, -0.1], 0.028); T([sd * 0.32, 0.88, -0.1], [sd * 0.32, 0.9, 0.45], 0.028); T([sd * 0.32, 0.9, 0.45], [sd * 0.36, 0.34, 0.52], 0.028);
@@ -2310,12 +2321,13 @@ AIRCRAFT.modelt = { name: 'Model T Flivver', heli: true, car: true, model: MT.g,
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.4, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.4, debris: [0x0c0c0e, 0xc9a24a, 0xb98a4e] };
 // car on the ground, glider in the air: C grows and folds the wings, G / T work the flaps. Long soft springs with heavy damping deep
-// in the travel, so it floats over rough ground and shrugs off landings. Traction is deliberately far better than
+// in the travel, so it floats over rough ground and shrugs off landings. Folded, two fans pull it into the ground (fan) and it has
+// a lot of shove from a standstill (accMax). Traction is deliberately far better than
 // any real tire (grip, offGrip), the mass is treated as sitting at axle height (cgH) so it cannot trip over that
 // grip, and steerA asks the front wheels for a set cornering force at any speed.
 AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, parts: BG.parts, M: 320, S: 16, I: new V3(380, 520, 300),
   wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.78, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
-  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.38, pwr: 150000, accMax: 16, grip: 2.4, offGrip: 1.25, steerA: 48, cgH: 0.72, rollK: 0.012,
+  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.38, pwr: 150000, accMax: 27, fan: 14, grip: 2.4, offGrip: 1.25, steerA: 60, cgH: 0.72, rollK: 0.012,
   hard: hardPts([[0, 0.95, 0.17]]),
   thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 40, flapSteps: 4, flapCL: 0.9, flapCD: 0.16,
   cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
@@ -3645,6 +3657,8 @@ function stepPlane(dt) {
     }
     carDrive = gas ? Math.min(M * (A.accMax || 12), (A.pwr || 750000) * TW.power / Math.max(Math.abs(vf), 1)) : (brk && vf <= 0.5 ? -M * 4 : 0);
     if (P.wheels >= 2) F.addScaledVector(up, -M * 0.0006 * vf * vf * (A.wings ? 1 - wg : 1));
+    // downforce fans: a steady pull into the ground at any speed, for as long as a wheel is touching and the wings are folded
+    if (A.fan && P.wheels >= 1) F.addScaledVector(up, -M * A.fan * (1 - wg));
     if (!A.heli) F.addScaledVector(vaW, -M * (0.004 + 0.0004 * vaW.length()));
   }
 
@@ -3977,7 +3991,7 @@ function updateHud() {
   $('alt').textContent = Math.max(0, Math.round((P.pos.y - groundAt(P.pos.x, P.pos.z, P.pos.y) - 0.88) * 3.281));
   $('stall').style.visibility = (P.wheels === 0 && !AC.heli && !(AC.car && !AC.wings) && !(AC.wings && P.wing < 0.5) && Math.abs(P.alpha) > AC.aStall && !P.crashed) ? 'visible' : 'hidden';
   { const deg = Math.round(P.flapT * (AC.flapMax || 30)); $('lock').textContent = LOCK.on ? 'Road lock' : ''; $('lives').textContent = LIVES && LIFE_MODES[game.mode] ? (game.lives === Infinity ? 'Lives: unlimited' : `Lives: ${game.lives}`) : '';
-    $('flaps').textContent = AC.wings ? (P.wingT ? 'Wings out' + (deg ? ` · flaps ${deg}°` : '') : 'Wings folded') : AC.flaps ? (deg ? `${AC.flaperon ? 'Flaperons' : 'Flaps'} ${deg}°` : 'Flaps up') : ''; }
+    $('flaps').textContent = AC.wings ? (P.wingT ? 'Wings out' + (deg ? ` · flaps ${deg}°` : '') : 'Wings folded · fans on') : AC.flaps ? (deg ? `${AC.flaperon ? 'Flaperons' : 'Flaps'} ${deg}°` : 'Flaps up') : ''; }
   $('brk').style.visibility = k('KeyB') && P.wheels > 0 && !AC.boat ? 'visible' : 'hidden';
   $('stickpos').hidden = !stickyOn || AC.car || AC.boat;
   if (stickyOn) { const sp = $('stickpos'), d = sp.querySelector('i'), y = sp.querySelector('b'); d.style.left = (50 - STK.r * 42) + '%'; d.style.top = (50 + STK.p * 42) + '%'; y.style.left = (50 - STK.y * 42) + '%'; }
@@ -4313,6 +4327,7 @@ function loop(now) {
     (pt.yokes || []).forEach(y => { y.col.position.z = y.z0 + (AC.car || AC.boat ? 0 : ctl.p * 0.08); y.wheel.rotation.z = AC.car || AC.boat ? P.steer * 1.6 : ctl.r * 0.7; });
     if (pt.collective) pt.collective.rotation.x = 0.5 - P.throttle * 0.5;
     if (pt.throttleLever) pt.throttleLever.rotation.x = 0.4 - P.throttle * 0.8;
+    if (pt.fans) { const on = P.crashed ? 0 : 1 - P.wing; pt.fans.forEach((f, i) => { f.rotation.y += (i ? -1 : 1) * on * 55 * dt; }); }
     if (pt.wheelSpin) {
       const vfw = P.v.dot(new V3(0, 0, -1).applyQuaternion(P.q));
       pt.wheelSpin.forEach(w => { w.rotation.x -= vfw / (AC.wheelR || 0.35) * dt; });
