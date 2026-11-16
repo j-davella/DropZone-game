@@ -134,6 +134,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
     <div class="sm" id="spdl">airspeed</div>
     <div class="sm" id="flaps" style="margin-top:4px">Flaps up</div>
     <div class="sm" id="lives"></div>
+    <div class="sm" id="lock"></div>
     <div class="sm" id="trimv">Trim neutral</div>
     <div class="mid" id="brk" style="color:var(--red);visibility:hidden">Brakes</div>
     <div id="stickpos" hidden><i></i><b></b></div>
@@ -168,7 +169,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
         <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>Also drive any car on the ground: gas, steer, brake. Once the thrusters are on (or the buggy is in the air) they fly it instead</dd>
         <dt>Model T</dt><dd>Drives and flies like the Roadster, just slower on the road</dd>
         <dt>Glide Buggy</dt><dd>No thrusters. Hit a jump, press <kbd>C</kbd> to grow the wings and fly it like a glider with W A S D and Q E; <kbd>C</kbd> again folds them. <kbd>G</kbd> <kbd>T</kbd> work its flaps. It rights itself and shrugs off hard landings</dd>
-        <dt><kbd>I</kbd></dt><dd>Gas</dd>
+        <dt><kbd>I</kbd></dt><dd>Gas with road lock: on a road or the circuit the car steers itself and slows for the bends, steer to let go (<kbd>W</kbd> is plain gas)</dd>
         <dt><kbd>K</kbd></dt><dd>Brake, then reverse</dd>
         <dt><kbd>J</kbd> <kbd>L</kbd></dt><dd>Steer left / right</dd>
         <dt><kbd>B</kbd></dt><dd>Handbrake (swing the tail)</dd>
@@ -214,6 +215,8 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
       <button data-m="drive">7 Race Track</button>
       <button data-m="po180">8 Power-off 180</button>
       <button data-m="stol">9 STOL Comp</button>
+      <button data-m="free">0 Freestyle</button>
+      <button data-m="drift">Arcade Drift</button>
     </div>
     <div class="sm" style="margin:-6px 0 6px">Aircraft (click, or <kbd>[</kbd> <kbd>]</kbd>)</div>
     <div class="modes" id="acs"></div>
@@ -1929,6 +1932,101 @@ function buildRoadster() {
 }
 
 
+// ---------- GT Coupe: long hood, cabin set well back, fastback, wide hips, twin stripes and a wing ----------
+function buildGT() {
+  const g = new THREE.Group(), parts = { props: [], discs: [], flaps: [], strobes: [], wheelSpin: [], frontSteer: [], flames: [] };
+  const paint = PH_(0x123f9a, { roughness: 0.22, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.2 });
+  const white = PH_(0xf2f2ee, { roughness: 0.3, clearcoat: 1, envMapIntensity: 0.9 });
+  const matte = M_(0x121314, { roughness: 0.7, envMapIntensity: 0.2 });
+  const gl = M_(0x0a0e13, { roughness: 0.02, metalness: 0.9, transparent: true, opacity: 0.72, envMapIntensity: 1.7, side: THREE.DoubleSide });
+  const chrome = M_(0xd8dce0, { roughness: 0.12, metalness: 1, envMapIntensity: 1.4 }), rub = M_(0x151516, { roughness: 0.92, envMapIntensity: 0.08 });
+  const gold = M_(0xb89a4a, { roughness: 0.3, metalness: 0.85, envMapIntensity: 1 }), gun = M_(0x2b2d31, { roughness: 0.3, metalness: 0.7, envMapIntensity: 0.9 });
+  const Y0 = -0.5, WY = Y0 + 0.35, WR = 0.45, WZ = [-1.45, 1.3], SE = 3.2, NP = 56;
+  const key = [[-2.3, 0.5, 0.26, 0.44], [-2.22, 0.84, 0.2, 0.54], [-2.0, 0.95, 0.17, 0.6], [-1.45, 1.0, 0.17, 0.68], [-0.9, 0.98, 0.17, 0.74], [-0.4, 0.95, 0.17, 0.8],
+    [0.2, 0.95, 0.17, 0.82], [0.8, 1.0, 0.17, 0.84], [1.3, 1.04, 0.17, 0.86], [1.8, 1.02, 0.2, 0.86], [2.1, 0.94, 0.26, 0.84], [2.22, 0.78, 0.32, 0.8], [2.26, 0.5, 0.38, 0.7]];
+  const lerp = (K, z) => { for (let i = 0; i < K.length - 1; i++) if (z >= K[i][0] && z <= K[i + 1][0]) { const t = (z - K[i][0]) / (K[i + 1][0] - K[i][0]); return K[i].map((v, k) => v + (K[i + 1][k] - v) * t); } return z < K[0][0] ? K[0] : K[K.length - 1]; };
+  const at = z => lerp(key, z);
+  const sp = (hw, yb, yt, th) => { const c = Math.cos(th), sn = Math.sin(th), hh = (yt - yb) / 2; return [hw * Math.sign(c) * Math.abs(c) ** (2 / SE), (yt + yb) / 2 + hh * Math.sign(sn) * Math.abs(sn) ** (2 / SE)]; };
+  const loft = (zs, ring, mat) => {
+    const rings = zs.map(z => ring(z).map(([x, y]) => new V3(x, y, z))), n = rings[0].length, pos = [], idx = [];
+    rings.forEach(r => r.forEach(q => pos.push(q.x, q.y, q.z)));
+    for (let i = 0; i < rings.length - 1; i++) for (let j = 0; j < n; j++) { const a = i * n + j, b = i * n + (j + 1) % n, c = (i + 1) * n + j, d = (i + 1) * n + (j + 1) % n; idx.push(a, b, c, b, d, c); }
+    [0, rings.length - 1].forEach((ri, k) => { const ctr = rings[ri].reduce((a, q) => a.add(q), new V3()).multiplyScalar(1 / n), ci = pos.length / 3; pos.push(ctr.x, ctr.y, ctr.z); for (let j = 0; j < n; j++) { const a = ri * n + j, b = ri * n + (j + 1) % n; if (k) idx.push(ci, a, b); else idx.push(ci, b, a); } });
+    const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); ge.setIndex(idx); ge.computeVertexNormals();
+    return mk(ge, mat, g);
+  };
+  const span = (a, b, st) => { const o = []; for (let z = a; z < b - 1e-6; z += st) o.push(z); o.push(b); return o; };
+  const two = m => { const c = m.clone(); c.side = THREE.DoubleSide; return c; };
+  loft(span(-2.3, 2.26, 0.05), z => {
+    const [, hw, yb, yt] = at(z), out = [];
+    for (let i = 0; i < NP; i++) {
+      let [x, y] = sp(hw, yb + Y0, yt + Y0, -Math.PI / 2 + i / NP * Math.PI * 2);
+      for (const wz of WZ) { const dz = z - wz, dy = y - WY; if (dz * dz + dy * dy < WR * WR && Math.abs(x) > 0.55) x = Math.sign(x) * 0.7; }
+      out.push([x, y]);
+    }
+    return out;
+  }, two(paint));
+  // greenhouse: one dark glass canopy from the windshield to the tail, with a painted roof on top
+  const gk = [[-0.35, 0.82, 0.8], [-0.05, 0.8, 0.98], [0.25, 0.76, 1.1], [0.5, 0.72, 1.14], [1.0, 0.7, 1.1], [1.5, 0.64, 0.98], [2.0, 0.55, 0.86]];
+  const gring = (z, grow = 0) => { const [, hw, yt] = lerp(gk, z), belt = at(z)[3] - 0.02, out = []; for (let i = 0; i < 40; i++) { const [x, y] = sp(hw + grow, 0.3 + Y0, yt + Y0 + grow, -Math.PI / 2 + i / 40 * Math.PI * 2); out.push([x, Math.max(y, belt + Y0)]); } return out; };
+  loft(span(-0.35, 2.0, 0.05), z => gring(z), gl).castShadow = false;
+  loft(span(0.3, 1.12, 0.04), z => gring(z, 0.012).map(([x, y]) => [x, Math.max(y, lerp(gk, z)[2] + Y0 - 0.07)]), two(paint));
+  // twin stripes over the hood, roof and tail
+  const topOf = (hw, yb, yt, x) => (yt + yb) / 2 + (yt - yb) / 2 * Math.max(0, 1 - Math.abs(x / hw) ** SE) ** (1 / SE) + Y0;
+  const bodyTop = (z, x) => { const [, hw, yb, yt] = at(z); return topOf(hw, yb, yt, x); };
+  const roofTop = (z, x) => { const [, hw, yt] = lerp(gk, z); return topOf(hw + 0.012, 0.3, yt + 0.012, x); };
+  const ribbon = (z0, z1, x0, x1, yf) => {
+    const pos = [], idx = [], n = Math.ceil((z1 - z0) / 0.05);
+    for (let i = 0; i <= n; i++) { const z = z0 + (z1 - z0) * i / n; pos.push(x0, yf(z, x0) + 0.006, z, x1, yf(z, x1) + 0.006, z); if (i < n) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+    const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); ge.setIndex(idx); ge.computeVertexNormals();
+    mk(ge, two(white), g).castShadow = false;
+  };
+  [[-0.34, -0.08], [0.08, 0.34]].forEach(([a, b]) => { ribbon(-2.2, -0.36, a, b, bodyTop); ribbon(0.3, 1.12, a, b, roofTop); ribbon(2.02, 2.2, a, b, bodyTop); });
+  // lights, grille, splitter, diffuser, exhausts, mirrors, wing
+  const em = (c, e, i) => new THREE.MeshStandardMaterial({ color: c, emissive: e, emissiveIntensity: i, roughness: 0.2 });
+  [-1, 1].forEach(sd => {
+    const hl = new THREE.SphereGeometry(0.12, 18, 12); hl.scale(1, 0.9, 0.45); mk(hl, em(0xffffff, 0xe8f0ff, 1.2), g, sd * 0.66, 0.44 + Y0, -2.2);
+    mk(new THREE.TorusGeometry(0.125, 0.014, 8, 24), chrome, g, sd * 0.66, 0.44 + Y0, -2.215);
+    [0.5, 0.73].forEach(x => { const tl = new THREE.CylinderGeometry(0.075, 0.075, 0.03, 18); tl.rotateX(Math.PI / 2); mk(tl, em(0xff2020, 0xd00000, 1.1), g, sd * x, 0.63 + Y0, 2.215 - (x - 0.5) * 0.12); });
+    rod(g, [sd * 0.84, 0.82 + Y0, -0.2], [sd * 1.0, 0.86 + Y0, -0.18], 0.015, matte);
+    const mir = new THREE.SphereGeometry(0.08, 14, 10); mir.scale(1.2, 0.7, 0.8); mk(mir, paint, g, sd * 1.04, 0.88 + Y0, -0.16);
+    const vent = new THREE.SphereGeometry(0.18, 16, 10); vent.scale(0.2, 0.6, 1.5); mk(vent, matte, g, sd * 0.955, 0.5 + Y0, -0.75);
+    mk(new THREE.BoxGeometry(0.035, 0.26, 0.2), matte, g, sd * 0.62, 0.99 + Y0, 2.02);
+    const ex = new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16); ex.rotateX(Math.PI / 2); mk(ex, chrome, g, sd * 0.3, 0.3 + Y0, 2.24);
+  });
+  const wing = mk(new THREE.BoxGeometry(1.66, 0.03, 0.3), paint, g, 0, 1.12 + Y0, 2.06); wing.rotation.x = 0.12;
+  [-1, 1].forEach(sd => mk(new THREE.BoxGeometry(0.03, 0.12, 0.34), matte, g, sd * 0.83, 1.13 + Y0, 2.06));
+  mk(new THREE.BoxGeometry(1.2, 0.14, 0.08), matte, g, 0, 0.33 + Y0, -2.26);
+  mk(new THREE.BoxGeometry(1.8, 0.035, 0.34), matte, g, 0, 0.19 + Y0, -2.14);
+  mk(new THREE.BoxGeometry(1.5, 0.15, 0.32), matte, g, 0, 0.26 + Y0, 2.1);
+  for (let i = -2; i <= 2; i++) mk(new THREE.BoxGeometry(0.02, 0.15, 0.3), matte, g, i * 0.27, 0.25 + Y0, 2.13);
+  // wheels: fat tires, gold five-spoke rims
+  const tp = [[0.24, -0.15], [0.31, -0.155], [0.338, -0.14], [0.352, -0.1], [0.354, 0], [0.352, 0.1], [0.338, 0.14], [0.31, 0.155], [0.24, 0.15]].map(([r, y]) => new THREE.Vector2(r, y));
+  const tire = new THREE.LatheGeometry(tp, 36); tire.rotateZ(Math.PI / 2);
+  const barrel = new THREE.CylinderGeometry(0.24, 0.24, 0.27, 28, 1, true); barrel.rotateZ(Math.PI / 2);
+  const disc = new THREE.CylinderGeometry(0.19, 0.19, 0.03, 24); disc.rotateZ(Math.PI / 2);
+  [[-1, WZ[0], true], [1, WZ[0], true], [-1, WZ[1], false], [1, WZ[1], false]].forEach(([sd, z, front]) => {
+    const grp = pivot(g, sd * 0.85, WY, z), spin = new THREE.Group(); grp.add(spin);
+    mk(tire, rub, spin); mk(barrel, gun, spin);
+    mk(disc, M_(0x7d8186, { metalness: 0.9, roughness: 0.35 }), spin, -sd * 0.05, 0, 0);
+    for (let i = 0; i < 5; i++) { const sk = mk(new THREE.BoxGeometry(0.03, 0.06, 0.46), gold, spin, sd * 0.11, 0, 0); sk.rotation.x = i / 5 * Math.PI; }
+    mk(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 16).rotateZ(Math.PI / 2), gold, spin, sd * 0.13, 0, 0);
+    mk(new THREE.BoxGeometry(0.06, 0.12, 0.16), M_(0xe8c020, { roughness: 0.35 }), grp, sd * -0.02, 0.12, 0.1);
+    parts.wheelSpin.push(spin); if (front) parts.frontSteer.push(grp);
+  });
+  // seats and a driver in a helmet
+  [-0.38, 0.38].forEach(x => { mk(new THREE.BoxGeometry(0.46, 0.5, 0.1), matte, g, x, 0.22, 0.95).rotation.x = -0.25; mk(new THREE.BoxGeometry(0.46, 0.1, 0.46), matte, g, x, -0.04, 0.72); });
+  const pilot = new THREE.Group(); g.add(pilot); parts.pilot = pilot;
+  const suit = M_(0x1b1d20, { roughness: 0.7 });
+  mk(new THREE.CylinderGeometry(0.16, 0.19, 0.42, 14), suit, pilot, -0.38, 0.18, 0.78);
+  mk(new THREE.SphereGeometry(0.15, 18, 14), M_(0xf2f2ee, { roughness: 0.25 }), pilot, -0.38, 0.46, 0.74);
+  mk(new THREE.SphereGeometry(0.152, 18, 10, Math.PI * 0.6, Math.PI * 0.8, 1.0, 0.8), M_(0x111111, { roughness: 0.03, metalness: 0.8, envMapIntensity: 1.4 }), pilot, -0.38, 0.46, 0.74);
+  rod(pilot, [-0.52, 0.3, 0.74], [-0.5, 0.22, 0.36], 0.05, suit);
+  rod(pilot, [-0.24, 0.3, 0.74], [-0.26, 0.22, 0.36], 0.05, suit);
+  addCockpit(g, parts, { eye: new V3(-0.38, 0.47, 0.62), panelX: -0.08, w: 0.9, dist: 0.62, drop: 0.22, ctl: 'yoke', seats: [-0.38], frames: [] });
+  return { g, parts };
+}
+
 function buildBoat() {
   const g = new THREE.Group(), parts = { props: [], discs: [], flaps: [], strobes: [], spray: [] };
   const dark = M_(0x16181b, { roughness: 0.4 }), metal = M_(0xc4c8ce, { roughness: 0.25, metalness: 0.85, envMapIntensity: 1 });
@@ -2139,7 +2237,7 @@ function buildBuggy() {
   return { g: outer, parts };
 }
 
-const B17 = buildB17(), HAWK = buildHawk(), EXTRA = buildExtra(), RD = buildRoadster(), BOAT = buildBoat(), MT = buildModelT(), BG = buildBuggy();
+const B17 = buildB17(), HAWK = buildHawk(), EXTRA = buildExtra(), RD = buildRoadster(), BOAT = buildBoat(), MT = buildModelT(), BG = buildBuggy(), GT = buildGT();
 const KP = kolb.userData;
 const wheelDef = (M, share, p, steer = false) => { const k = M * 9.8 * share / 0.05; return { p: new V3(...p), k, c: 2 * 0.7 * Math.sqrt(k * M * share), steer }; };
 const hardPts = a => a.map(q => new V3(...q));
@@ -2183,6 +2281,14 @@ AIRCRAFT.roadster = { name: 'Tesla Roadster', heli: true, car: true, model: RD.g
   flaps: false, cam: { d: 9, h: 2.4 }, size: 4, eye: new V3(-0.4, 0.6, 0.12), wingCam: new V3(0, 0.42, -1.5),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.6, debris: [0xb3121b, 0x0d0d0f, 0xd8dce0] };
+// GT Coupe: a plain car, no thrusters and no wings. In Arcade Drift it gets the fake physics; everywhere else it is a fast road car.
+AIRCRAFT.gt = { name: 'GT Coupe', car: true, model: GT.g, parts: GT.parts, M: 1400, S: 0.8, I: new V3(1400 * 1.2, 1400 * 1.6, 1400 * 0.6),
+  wheels: [[-0.85, -1.45, true], [0.85, -1.45, true], [-0.85, 1.3, false], [0.85, 1.3, false]].map(([x, z, f]) => Object.assign(wheelDef(1400, 0.25, [x, -0.5, z], f), { front: f })),
+  hard: hardPts([[0, 0.62, 0.7], [-1.0, 0.3, 0.3], [1.0, 0.3, 0.3]]), pwr: 420000, accMax: 11, grip: 1.15, cgH: 0.3,
+  thrust: 0, vmax: 100, cl0: 0, aStall: 0.3, cd0: 0.05, gn: { elev: 1, ail: 1.5, rud: 1, stab: 6, beta: 5, damp: [3, 3, 3] }, vref: 40, trim: 0,
+  flaps: false, cam: { d: 9, h: 2.4 }, size: 4, eye: new V3(-0.38, 0.47, 0.62), wingCam: new V3(0, 0.36, -1.7),
+  panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
+  drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.5, debris: [0x123f9a, 0xf2f2ee, 0x151516] };
 AIRCRAFT.modelt = { name: 'Model T Flivver', heli: true, car: true, model: MT.g, parts: MT.parts, M: 700, S: 1, I: new V3(700 * 1.0, 700 * 1.3, 700 * 0.6),
   wheels: [[-0.71, -1.27, true], [0.71, -1.27, true], [-0.71, 1.27, false], [0.71, 1.27, false]].map(([x, z, f]) => Object.assign(wheelDef(700, 0.25, [x, -0.63, z], f), { front: f })),
   hard: hardPts([[0, 1.3, 0.5], [-0.62, 0.45, 0.3], [0.62, 0.45, 0.3]]), wheelR: 0.38, pwr: 14000, accMax: 4.5, grip: 0.8, steerK: 0.6, cgH: 0.35,
@@ -2432,6 +2538,7 @@ function respawnHere() {
   return true;
 }
 function respawn() {
+  if (game.mode === 'free') { if (respawnHere()) toast('Back where you crashed'); else resetPlane(); return; }
   if (LIVES && LIFE_MODES[game.mode]) {
     if (game.lives > 0 && respawnHere()) { game.lives--; toast(game.lives === Infinity ? 'Back where you crashed' : `Back where you crashed · ${game.lives} ${game.lives === 1 ? 'life' : 'lives'} left`); return; }
     game.lives = LIVES; TRAIL.length = 0; toast('Out of lives: back to the start');
@@ -2449,6 +2556,8 @@ function respawn() {
 Object.assign(MODE_INFO, {
   balloon: { name: 'Balloon Pop', desc: 'Twenty-five balloons drifting over the field. Fly through them. Pop them back to back, within 4 seconds of each other, for a combo multiplier. 90 seconds.' },
   deadstick: { name: 'Deadstick', desc: 'Your engine just quit. You’re high and far out, and the only throttle you have left is gravity. Glide back and touch down on the orange bar. Closest and softest wins. Too high? Slip it or S-turn.' },
+  free: { name: 'Freestyle', desc: 'No clock, no score, no targets. Take anything in the hangar anywhere on the map: fly the canyon, drive the mountain roads and tunnels, lap the circuit, land on a bridge. Crash and you carry on from where you were.' },
+  drift: { name: 'Arcade Drift', desc: 'Pure video game. You get the GT Coupe on the circuit with fake physics: the nose goes where you steer, the tail hangs out, and nothing can kill it. No crashes, no rollovers, walls just bounce you. Slide for points: the longer you hold a drift the bigger the multiplier, and touching a barrier drops it. I gas, K brake, J/L steer, B handbrake for big angle. Two minutes.' },
   truck: { name: 'Truck Bomb', desc: 'A pickup is doing laps on the dirt road with a target in the bed. Bomb it. It speeds up every time you hit it. Eight balls, two minutes.' },
 });
 const SPOT_Z = 110;
@@ -2553,7 +2662,14 @@ function startExtra() {
   game.score = 0; game.pen = 0; game.balls = 0; game.ballMax = 0;
   const a = Math.random() * Math.PI * 2;
   baseWind.set(Math.cos(a) * 2.5, 0, Math.sin(a) * 2.5);
-  if (game.mode === 'balloon') {
+  if (game.mode === 'free') {
+    game.time = 0; resetPlane();
+  } else if (game.mode === 'drift') {
+    if (acId !== 'gt') setAircraft('gt');
+    baseWind.set(0, 0, 0);
+    game.time = 120; spawnOnTrack(3);
+    X.dr = { acc: 0, combo: 0, mult: 1, hold: 0, hit: DRV.lastHit, smoke: 0, best: 0, run: 0 };
+  } else if (game.mode === 'balloon') {
     game.time = 90; X.combo = 0; X.lastPop = -99;
     spawnBalloons();
     spawnAir(new V3(0, 45, 300), new V3(0, 0, -1), 25);
@@ -2583,7 +2699,7 @@ function startExtra() {
   renderBalls();
   game.state = 'flying';
   $('over').hidden = true; $('title').hidden = true;
-  toast({ deadstick: 'Engine failure!', po180: 'Abeam the spot, power to idle', stol: 'Brakes, full power, go when ready' }[game.mode] || 'Go!');
+  toast({ deadstick: 'Engine failure!', po180: 'Abeam the spot, power to idle', stol: 'Brakes, full power, go when ready' }[game.mode] || (game.mode === 'free' ? 'Go anywhere' : 'Go!'));
 }
 function finishScore(title, rows, score) {
   game.state = 'over';
@@ -2605,7 +2721,24 @@ function finishDeadstick(crashed) {
 }
 function extraStep(dt) {
   if (game.state !== 'flying') return;
-  if (game.mode === 'balloon') {
+  if (game.mode === 'free') game.time += dt;
+  else if (game.mode === 'drift') {
+    game.time -= dt;
+    const d = X.dr, sp = P.v.length();
+    let slip = 0;
+    if (!P.crashed && P.wheels >= 2 && sp > 8) slip = Math.acos(Math.min(1, Math.abs(new V3(0, 0, -1).applyQuaternion(P.q).dot(P.v) / sp)));
+    if (DRV.lastHit > d.hit) { d.hit = DRV.lastHit; d.combo = 0; d.mult = 1; d.run = 0; }
+    if (slip > 0.2) {
+      d.hold = 0.8; d.combo += dt; d.mult = 1 + Math.min(4, Math.floor(d.combo / 2));
+      const pts = slip * sp * dt * d.mult; d.acc += pts; d.run += pts; d.best = Math.max(d.best, d.run);
+      if (game.t > d.smoke) {
+        d.smoke = game.t + 0.07;
+        for (const wh of AC.wheels) if (!wh.front) puff(wh.p.clone().applyQuaternion(P.q).add(P.pos), 0xd9d9d9, 0.3);
+      }
+    } else if ((d.hold -= dt) <= 0) { if (d.run > 150) toast(`Drift +${Math.round(d.run)}`); d.combo = 0; d.mult = 1; d.run = 0; }
+    game.score = Math.round(d.acc);
+    if (game.time <= 0) finishScore('Time’s up', `<span>Best single drift</span><b>${Math.round(d.best)}</b><span>Score</span><b>${game.score}</b>`, game.score);
+  } else if (game.mode === 'balloon') {
     game.time -= dt;
     for (let i = balloonList.length - 1; i >= 0; i--) {
       const b = balloonList[i];
@@ -3133,6 +3266,7 @@ window.addEventListener('keydown', e => {
     if (e.code === 'Digit7') setMode('drive');
     if (e.code === 'Digit8') setMode('po180');
     if (e.code === 'Digit9') setMode('stol');
+    if (e.code === 'Digit0') setMode('free');
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
       const ids = Object.keys(AIRCRAFT), i = ids.indexOf(acId);
       setAircraft(ids[(i + (e.code === 'BracketRight' ? 1 : ids.length - 1)) % ids.length]);
@@ -3145,6 +3279,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyM' && (game.state === 'over' || game.state === 'paused')) { $('paused').hidden = true; $('help').hidden = true; helpPaused = false; toMenu(); return; }
   if (game.state === 'flying') {
     if (e.code === 'Space' && (game.mode === 'drop' || game.mode === 'truck')) dropBall();
+    if (e.code === 'KeyI') lockOn();
     if ((e.code === 'KeyG' || e.code === 'KeyT') && AC.flaps) {
       const st = 1 / (AC.flapSteps || 2);
       P.flapT = Math.max(0, Math.min(1, Math.round((P.flapT + (e.code === 'KeyG' ? st : -st)) / st) * st));
@@ -3286,6 +3421,64 @@ const expo = v => { const e = Math.min(1, 0.65 * TW.expo); return v * (1 - e + e
 // steerA: wheelbase x the cornering acceleration full lock asks for, so the car turns as hard at 150 km/h as at 30
 const steerLock = () => (AC.steerA ? Math.min(0.62, Math.atan(AC.steerA * TW.grip / Math.max(1, P.v.lengthSq()))) : Math.min(0.6, 1.5 * Math.atan(2.55 * 13 * (AC.steerK || 1) * TW.grip / Math.max(1, P.v.lengthSq())))) * TW.steer * (P.boost || 1);
 
+// ---------- road lock: I is gas with the steering locked to the road under the car ----------
+// Press I on a road (or the circuit) and the car steers itself along it; it also holds the speed down to what the next
+// bends can take, so I alone gets you there. Touch the steering and it lets go. W is still plain gas with no lock.
+const LOCK = { on: false, trk: false, i: 0, dir: 1, vcap: 1e9 };
+const expoInv = y => { let lo = 0, hi = 1; const a = Math.min(1, Math.abs(y)); for (let i = 0; i < 14; i++) { const m = (lo + hi) / 2; if (expo(m) < a) lo = m; else hi = m; } return Math.sign(y) * hi; };
+function lockOff(msg) { if (LOCK.on && msg) toast(msg); LOCK.on = false; LOCK.vcap = 1e9; }
+const lockSeg = () => LOCK.trk ? { pts: TRK.pts, tan: TRK.tan, lo: 0, hi: TRK.n - 1, loop: true, ds: 2 }
+  : { pts: ROADN.pts, tan: ROADN.tan, lo: ROADN.rs[LOCK.i], hi: ROADN.re[LOCK.i], loop: ROADN.rs[LOCK.i] === ROADN.roads[0][0], ds: 3 };
+function lockOn() {
+  if (!AC.car || P.wheels < 2 || P.crashed || game.mode === 'drift') return;
+  const f = new V3(0, 0, -1).applyQuaternion(P.q), x = P.pos.x, z = P.pos.z;
+  const tn = inTrackBox(x, z, 0) ? trackNear(x, z) : null, rn = ROADN.n > 0 ? roadNear(x, z) : null;
+  if (tn && tn.d < TRK.rail && !(rn && rn.d < tn.d)) { LOCK.trk = true; LOCK.i = tn.i; }
+  else if (rn && rn.d < 12) { LOCK.trk = false; LOCK.i = rn.i; }
+  else return;
+  const t = (LOCK.trk ? TRK : ROADN).tan[LOCK.i];
+  LOCK.dir = f.x * t.x + f.z * t.z < 0 ? -1 : 1;
+  if (!LOCK.on) toast('Road lock on: steer to let go');
+  LOCK.on = true;
+}
+// the steering the lock wants, -1..1, and the speed the road ahead allows (LOCK.vcap)
+function lockSteer() {
+  let sg = lockSeg();
+  const f = new V3(0, 0, -1).applyQuaternion(P.q), x = P.pos.x, z = P.pos.z, sp = P.v.length();
+  const span = sg.hi - sg.lo + 1, wrap = j => sg.loop ? sg.lo + ((j - sg.lo) % span + span) % span : Math.max(sg.lo, Math.min(sg.hi, j));
+  let bi = LOCK.i, bd = 1e18;
+  for (let o = -6; o <= 16; o++) { const j = wrap(LOCK.i + o * LOCK.dir), q = sg.pts[j], d = (q.x - x) ** 2 + (q.z - z) ** 2; if (d < bd) { bd = d; bi = j; } }
+  LOCK.i = bi;
+  if (bd > 900) { lockOff('Road lock off: lost the road'); return 0; }
+  const L = Math.max(7, Math.min(40, 5 + sp * 0.55)), ahead = Math.round(L / sg.ds);
+  if (!sg.loop && (LOCK.dir > 0 ? sg.hi - bi : bi - sg.lo) < ahead + 1) {
+    // end of this road: carry on along whichever road it joins, the way that is most straight on
+    const e = sg.pts[LOCK.dir > 0 ? sg.hi : sg.lo]; let ji = -1, jd = 625;
+    for (let j = 0; j < ROADN.n; j++) { if (j >= sg.lo && j <= sg.hi) continue; const q = ROADN.pts[j], d = (q.x - e.x) ** 2 + (q.z - e.z) ** 2; if (d < jd) { jd = d; ji = j; } }
+    const tn = inTrackBox(e.x, e.z, 0) ? trackNear(e.x, e.z) : null;
+    if (!LOCK.trk && tn && tn.d < 25 && (ji < 0 || tn.d * tn.d < jd)) { LOCK.trk = true; LOCK.i = tn.i; const t = TRK.tan[tn.i]; LOCK.dir = f.x * t.x + f.z * t.z < 0 ? -1 : 1; return P.steer; }
+    if (LOCK.trk || ji < 0) { lockOff('Road lock off: end of the road'); return 0; }
+    LOCK.i = ji; const t = ROADN.tan[ji]; LOCK.dir = f.x * t.x + f.z * t.z < 0 ? -1 : 1;
+    return P.steer;
+  }
+  const tg = sg.pts[wrap(bi + ahead * LOCK.dir)], dx = tg.x - x, dz = tg.z - z, dist = Math.max(3, Math.hypot(dx, dz));
+  const e = Math.atan2(f.z * dx - f.x * dz, f.x * dx + f.z * dz);
+  const wb = Math.abs(AC.wheels[0].p.z - AC.wheels[AC.wheels.length - 1].p.z) || 2.6;
+  const kap = 2 * Math.sin(e) / dist;
+  // the fastest the bends ahead can be taken, allowing for the braking distance to each
+  const aLat = 9 * Math.min(1.5, AC.grip || 1) * TW.grip, look = Math.max(30, sp * 3);
+  let cap = Math.sqrt(aLat / Math.max(1e-4, Math.abs(kap) * 0.8));
+  for (let m = 0; m * sg.ds < look; m += 3) {
+    const a = wrap(bi + m * LOCK.dir), b = wrap(bi + (m + 4) * LOCK.dir); if (a === b) break;
+    const ta = sg.tan[a], tb = sg.tan[b], kc = Math.abs(Math.atan2(ta.x * tb.z - ta.z * tb.x, ta.x * tb.x + ta.z * tb.z)) / (Math.abs(b - a) * sg.ds);
+    cap = Math.min(cap, Math.sqrt(aLat / Math.max(1e-4, kc) + 2 * 6 * m * sg.ds));
+  }
+  // a road that ends is a junction or a dead end: arrive slowly
+  if (!sg.loop) cap = Math.min(cap, Math.sqrt(64 + 2 * 6 * Math.max(0, (LOCK.dir > 0 ? sg.hi - bi : bi - sg.lo) * sg.ds - 15)));
+  LOCK.vcap = Math.max(6, cap);
+  return expoInv(Math.atan(wb * kap) / Math.max(0.01, steerLock()));
+}
+
 function stepPlane(dt) {
   if (AC.boat) return stepBoat(dt);
   const A = AC, M = A.M, gn = A.gn;
@@ -3317,7 +3510,9 @@ function stepPlane(dt) {
   else P.flap = P.flapT = 0;
   const brake = k('KeyB');
   const steerIn = (k('KeyJ') || dk('KeyA') ? 1 : 0) - (k('KeyL') || dk('KeyD') ? 1 : 0);
-  { const grow = steerIn !== 0 && (P.steer === 0 || Math.sign(steerIn) === Math.sign(P.steer)) && Math.abs(steerIn) > Math.abs(P.steer);
+  if (LOCK.on && (steerIn || !A.car)) lockOff(steerIn ? 'Road lock off' : '');
+  if (LOCK.on) { if (P.wheels >= 2) { const w = lockSteer(); P.steer += Math.max(-6 * dt, Math.min(6 * dt, w - P.steer)); } }
+  else { const grow = steerIn !== 0 && (P.steer === 0 || Math.sign(steerIn) === Math.sign(P.steer)) && Math.abs(steerIn) > Math.abs(P.steer);
     const sr = grow ? 3.2 / Math.max(0.05, TW.rampIn) : 7 / Math.max(0.05, TW.rampOut);
     P.steer += Math.max(-sr * dt, Math.min(sr * dt, steerIn - P.steer)); }
   if (k('Comma')) P.trim = Math.max(-1, P.trim - dt * 0.35);
@@ -3333,13 +3528,24 @@ function stepPlane(dt) {
   const V = vb.length();
   const F = new V3(0, -M * G, 0), ang = new V3();
   let alpha = 0, beta = 0, carDrive = 0, carBrake = false;
+  // Arcade Drift: fake physics. The nose turns at a rate set by the steering, the tires only drag the slide back in line
+  // lazily (slower with the gas down, slower still on the handbrake), and nothing is limited by grip.
+  const ARC = !!A.car && game.mode === 'drift';
+  let arcK = 0, arcR = 0, arcGas = false;
   if (A.wings) P.wing += Math.max(-dt * 2.5, Math.min(dt * 2.5, P.wingT - P.wing));
   // fold-out wings: wg scales wing area and control power, so folded it is a car that just falls
   const wg = A.wings ? P.wing : 1;
   if (A.car) {
     const vf = P.v.dot(fwd);
-    const gas = k('KeyI') || dk('KeyW') || (!A.heli && k('KeyR')), brk = k('KeyK') || dk('KeyS') || (!A.heli && k('KeyF'));
+    let gas = k('KeyI') || dk('KeyW') || (!A.heli && k('KeyR')), brk = k('KeyK') || dk('KeyS') || (!A.heli && k('KeyF'));
+    if (LOCK.on && vf > LOCK.vcap) { gas = false; if (vf > LOCK.vcap + 1.5) brk = true; }
     carBrake = brk && vf > 0.5;
+    if (ARC) {
+      const sp = P.v.length();
+      arcGas = gas;
+      arcR = Math.min(1.5, 34 / Math.max(sp, 1)) * Math.min(1, 0.3 + sp / 8) * (brake ? 1.3 : 1);
+      arcK = Math.max(0.8, arcR / (brake ? 0.76 : gas ? 0.55 : 0.28), steerIn ? 0 : 4);
+    }
     carDrive = gas ? Math.min(M * (A.accMax || 12), (A.pwr || 750000) * TW.power / Math.max(Math.abs(vf), 1)) : (brk && vf <= 0.5 ? -M * 4 : 0);
     if (P.wheels >= 2) F.addScaledVector(up, -M * 0.0006 * vf * vf * (A.wings ? 1 - wg : 1));
     if (!A.heli) F.addScaledVector(vaW, -M * (0.004 + 0.0004 * vaW.length()));
@@ -3441,7 +3647,7 @@ function stepPlane(dt) {
     contact++; nSum.add(gN);
     const vp = P.v.clone().add(wW.clone().cross(r));
     const vpn = vp.dot(gN);
-    if (!lc && vpn < -(A.crashV || (A.car ? 15 : A.hardV || 4.5))) { crash('Hard landing −50'); return; }
+    if (!lc && !ARC && vpn < -(A.crashV || (A.car ? 15 : A.hardV || 4.5))) { crash('Hard landing −50'); return; }
     wh.cmp = d;
     // k2/c2: stiffer and better damped deep in the travel; bump: softer damping on the way in than on the way out,
     // like an off-road shock, so the wheel gives over a bump and the body does not get kicked
@@ -3463,7 +3669,12 @@ function stepPlane(dt) {
       else fr = carDrive * 0.25 - vf * M * (A.rollK || 0.004);
       if (brake && !wh.front) { fr = Math.abs(vf) < 0.4 ? -vf * M * 3 : -Math.sign(vf) * muS * N * 0.8; fl *= 0.3; }
       const lim = muS * N, tot = Math.hypot(fl, fr);
-      if (tot > lim) { fl *= lim / tot; fr *= lim / tot; }
+      if (ARC) {
+        fl = lc ? 0 : -vl * M * arcK / 4;
+        fr = carBrake ? (Math.abs(vf) < 0.4 ? -vf * M * 3 : -Math.sign(vf) * M * 4) : carDrive * 0.25 - vf * M * (A.rollK || 0.004);
+        if (brake && !wh.front) fr -= Math.sign(vf) * M * Math.min(1.5, Math.abs(vf));
+      }
+      else if (tot > lim) { fl *= lim / tot; fr *= lim / tot; }
     } else {
       fl = -Math.max(-0.6 * N, Math.min(0.6 * N, vl * M * 14));
       // toe brakes: B for both, add Q/E with B to brake one side harder (steer with brakes like a real taildragger)
@@ -3488,14 +3699,21 @@ function stepPlane(dt) {
   }
   if (loopHit) { const vbb = P.v.clone().applyQuaternion(qinv); P.w.y += (-3 * Math.atan2(vbb.x, Math.max(1, -vbb.z)) - P.w.y) * Math.min(1, dt * 10); }
 
+  const arcOn = ARC && contact >= 2;
+  if (arcOn && arcGas) {
+    // sliding costs nothing while the gas is down: most of what the tires scrub off is handed straight back
+    const sp = P.v.length(), vlat = P.v.dot(new V3(1, 0, 0).applyQuaternion(P.q));
+    if (sp > 4) F.addScaledVector(P.v, M * arcK * vlat * vlat / (sp * sp) * 0.8);
+  }
   P.v.addScaledVector(F, dt / M);
   const tb = tau.applyQuaternion(qinv);
+  if (arcOn) { tb.y = 0; P.w.y += (P.steer * arcR * (P.v.dot(fwd) < -1 ? -1 : 1) - P.w.y) * Math.min(1, dt * 7); }
   P.w.x += (ang.x + tb.x / A.I.x) * dt;
   P.w.y += (ang.y + tb.y / A.I.y) * dt;
   P.w.z += (ang.z + tb.z / A.I.z) * dt;
   // noFlip: an unrealistically strong righting hand keeps the roof pointed away from the ground the wheels are on, or at the
   // sky in a jump, so the car cannot roll over or land on its lid. Left alone in the air with the wings out: that is flying.
-  if (A.noFlip && (contact || P.wing < 0.5)) {
+  if ((A.noFlip || ARC) && (contact || P.wing < 0.5)) {
     const n = (contact ? nSum.normalize() : new V3(0, 1, 0)).applyQuaternion(qinv), sn = Math.hypot(n.x, n.z), k = n.y < 0 && sn > 1e-3 ? 1 / sn : 1, gk = contact ? 1 : 0.4;
     P.w.z += (-n.x * k * 70 - P.w.z * 10) * gk * dt;
     if (P.wing < 0.5) P.w.x += (n.z * k * 45 - P.w.x * 5) * gk * dt;
@@ -3507,15 +3725,25 @@ function stepPlane(dt) {
   for (const hp of A.hard) {
     if (hp.tail) continue;
     const pt = hp.clone().applyQuaternion(P.q).add(P.pos);
-    if (pt.y < groundAt(pt.x, pt.z, pt.y)) { crash('Crashed −50'); return; }
+    const gh = groundAt(pt.x, pt.z, pt.y);
+    if (pt.y < gh) {
+      if (ARC) { P.pos.y += gh - pt.y; if (P.v.y < 0) P.v.y *= -0.2; continue; } // arcade: the bodywork just bounces off
+      crash('Crashed −50'); return;
+    }
   }
   if (A.car && inTrackBox(P.pos.x, P.pos.z, 0)) {
     const tn = trackNear(P.pos.x, P.pos.z), lim = TRK.rail - 1.05;
     if (tn && tn.d > lim && tn.d < TRK.rail + 2.5 && P.pos.y < tn.h + 2.5) {
       const t = TRK.tan[tn.i], nm = new V3(-t.z, 0, t.x), sg = Math.sign(tn.lat), vn = P.v.dot(nm) * sg;
       P.pos.addScaledVector(nm, -sg * (tn.d - lim));
+      if (ARC) {
+        // arcade: a wall turns the car along itself, so it slides down the armco and never ends up parked nose-in
+        const f = new V3(0, 0, -1).applyQuaternion(P.q), along = f.dot(t), dir = Math.abs(along) > 0.15 ? Math.sign(along) : (P.v.dot(t) < 0 ? -1 : 1);
+        const e = Math.atan2((f.z * t.x - f.x * t.z) * dir, along * dir);
+        P.q.premultiply(tq.setFromAxisAngle(WORLD_UP, e * Math.min(1, dt * 6)));
+      }
       if (vn > 0) {
-        P.v.addScaledVector(nm, -sg * vn * 1.35); P.v.multiplyScalar(0.985); P.w.y *= 0.6;
+        P.v.addScaledVector(nm, -sg * vn * 1.35); P.v.multiplyScalar(ARC ? 1 : 0.985); P.w.y *= 0.6;
         if (vn > 3 && game.t > DRV.lastHit + 0.5) { DRV.lastHit = game.t; shake = Math.min(1.2, vn / 15); toast(vn > 15 ? 'Big hit!' : 'Barrier'); }
       }
     }
@@ -3543,7 +3771,10 @@ function stepPlane(dt) {
 
 function crash(msg) {
   if (P.crashed) return;
+  lockOff();
   game.crashT = game.t;
+  // Arcade Drift: nothing kills it. Whatever would have (deep water, the edge of the map) just puts it back on dry ground.
+  if (AC.car && game.mode === 'drift') { if (!respawnHere()) spawnOnTrack(3); if (X.dr) { X.dr.combo = 0; X.dr.mult = 1; } toast('Back on the road'); return; }
   audioBoom(AC.fireScale);
   P.crashed = 2.4;
   if (game.mode === 'drop' || game.mode === 'truck') game.score = Math.max(0, game.score - 50);
@@ -3571,6 +3802,7 @@ function startRound() {
   toast(`Round ${game.round}`);
 }
 function startGame() {
+  lockOff();
   game.lives = LIVES; TRAIL.length = 0; trailAt = 0;
   pylonGroup.visible = true;
   canyonGroup.visible = true;
@@ -3613,7 +3845,7 @@ function toast(msg) {
 const heading = (x, z) => Math.atan2(x, -z);
 const camDir = new V3();
 function updateHud() {
-  const md = game.mode, race_ = md === 'pylon' || md === 'canyon', extra_ = md === 'balloon' || md === 'truck' || md === 'deadstick' || md === 'po180' || md === 'stol';
+  const md = game.mode, race_ = md === 'pylon' || md === 'canyon', extra_ = md === 'balloon' || md === 'truck' || md === 'deadstick' || md === 'po180' || md === 'stol' || md === 'free' || md === 'drift';
   if (md === 'drive') {
     $('score').textContent = `Lap ${Math.min(DRV.times.length + 1, DRV.laps)} / ${DRV.laps}`;
     const bl = getBest('drive-lap');
@@ -3622,13 +3854,13 @@ function updateHud() {
     $('timelabel').textContent = game.pen ? `lap time, +${game.pen}s penalty` : 'lap time';
   } else if (extra_) {
     const b = getBest(md);
-    $('score').textContent = md === 'deadstick' ? (X.ds && X.ds.touched ? 'Rolling out' : 'Engine out') : md === 'po180' ? (X.ds && X.ds.touched ? 'Rolling out' : 'Idle') : md === 'stol' && X.st ? (X.st.phase === 'roll' ? `Roll ${ftOf(Math.max(0, STOL.t0 - P.pos.z))} ft` : X.st.phase === 'air' ? `T/O ${ftOf(X.st.to)} ft` : `Land ${ftOf(Math.max(0, STOL.l0 - P.pos.z))} ft`) : game.score;
-    $('sub').textContent = `${MODE_INFO[md].name}, best ${b === null ? 'none' : b}`;
+    $('score').textContent = md === 'free' ? 'Free' : md === 'deadstick' ? (X.ds && X.ds.touched ? 'Rolling out' : 'Engine out') : md === 'po180' ? (X.ds && X.ds.touched ? 'Rolling out' : 'Idle') : md === 'stol' && X.st ? (X.st.phase === 'roll' ? `Roll ${ftOf(Math.max(0, STOL.t0 - P.pos.z))} ft` : X.st.phase === 'air' ? `T/O ${ftOf(X.st.to)} ft` : `Land ${ftOf(Math.max(0, STOL.l0 - P.pos.z))} ft`) : game.score;
+    $('sub').textContent = md === 'free' ? 'Freestyle: no clock, no score' : `${MODE_INFO[md].name}${md === 'drift' && X.dr ? ' x' + X.dr.mult : ''}, best ${b === null ? 'none' : b}`;
     const tm = Math.max(0, Math.ceil(game.time));
-    const up_ = md === 'deadstick' || md === 'po180' || md === 'stol';
+    const up_ = md === 'deadstick' || md === 'po180' || md === 'stol' || md === 'free';
     $('time').textContent = up_ ? fmtTime(game.time) : tm;
     $('time').classList.toggle('low', !up_ && tm <= 15);
-    $('timelabel').textContent = up_ ? (md === 'stol' ? 'elapsed' : 'gliding') : 'seconds';
+    $('timelabel').textContent = up_ ? (md === 'stol' || md === 'free' ? 'elapsed' : 'gliding') : 'seconds';
   } else if (!race_) {
     $('score').textContent = game.score;
     $('sub').textContent = `Round ${game.round}, best ${best}`;
@@ -3646,8 +3878,8 @@ function updateHud() {
   }
   $('balls').style.display = (md === 'drop' || md === 'truck') ? 'flex' : 'none';
   $('alt').textContent = Math.max(0, Math.round((P.pos.y - groundAt(P.pos.x, P.pos.z, P.pos.y) - 0.88) * 3.281));
-  $('stall').style.visibility = (P.wheels === 0 && !AC.heli && !(AC.wings && P.wing < 0.5) && Math.abs(P.alpha) > AC.aStall && !P.crashed) ? 'visible' : 'hidden';
-  { const deg = Math.round(P.flapT * (AC.flapMax || 30)); $('lives').textContent = LIVES && LIFE_MODES[game.mode] ? (game.lives === Infinity ? 'Lives: unlimited' : `Lives: ${game.lives}`) : '';
+  $('stall').style.visibility = (P.wheels === 0 && !AC.heli && !(AC.car && !AC.wings) && !(AC.wings && P.wing < 0.5) && Math.abs(P.alpha) > AC.aStall && !P.crashed) ? 'visible' : 'hidden';
+  { const deg = Math.round(P.flapT * (AC.flapMax || 30)); $('lock').textContent = LOCK.on ? 'Road lock' : ''; $('lives').textContent = LIVES && LIFE_MODES[game.mode] ? (game.lives === Infinity ? 'Lives: unlimited' : `Lives: ${game.lives}`) : '';
     $('flaps').textContent = AC.wings ? (P.wingT ? 'Wings out' + (deg ? ` · flaps ${deg}°` : '') : 'Wings folded') : AC.flaps ? (deg ? `${AC.flaperon ? 'Flaperons' : 'Flaps'} ${deg}°` : 'Flaps up') : ''; }
   $('brk').style.visibility = k('KeyB') && P.wheels > 0 && !AC.boat ? 'visible' : 'hidden';
   $('stickpos').hidden = !stickyOn || AC.car || AC.boat;
@@ -3667,6 +3899,10 @@ function updateHud() {
     for (const b of balloonList) { const d = Math.hypot(b.g.position.x - P.pos.x, b.g.position.z - P.pos.z); if (d < nd) { nd = d; tx = b.g.position.x; tz = b.g.position.z; } }
   } else if (md === 'drive') {
     label = 'track ahead'; const j = (DRV.idx + 60) % TRK.n; tx = TRK.pts[j].x; tz = TRK.pts[j].z;
+  } else if (md === 'free') {
+    label = 'to the airfield'; tx = 0; tz = 0;
+  } else if (md === 'drift') {
+    label = 'to the circuit start'; tx = TRK.pts[3].x; tz = TRK.pts[3].z;
   } else if (md === 'truck') {
     label = 'to the truck'; tx = truck.position.x; tz = truck.position.z;
   } else if (md === 'deadstick' || md === 'po180') {
@@ -3787,7 +4023,7 @@ function step(dt) {
     prevPos.copy(P.pos);
     const n = Math.ceil(dt / (1 / 240));
     for (let i = 0; i < n && !P.crashed; i++) stepPlane(dt / n);
-    if (!P.crashed && LIVES && game.t >= trailAt) {
+    if (!P.crashed && (LIVES || game.mode === 'free' || game.mode === 'drift') && game.t >= trailAt) {
       trailAt = game.t + 0.25;
       TRAIL.push({ t: game.t, pos: P.pos.clone(), q: P.q.clone(), sp: P.v.length(), gnd: P.wheels >= 2, wet: waterAt(P.pos.x, P.pos.z) !== null });
       if (TRAIL.length > 48) TRAIL.shift();
