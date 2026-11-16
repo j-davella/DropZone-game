@@ -2015,51 +2015,75 @@ function buildBuggy() {
   // g is the sprung body: the render loop pitches and rolls it on its suspension inside the outer group, which is what the physics moves
   const outer = new THREE.Group(), g = new THREE.Group(), parts = { props: [], discs: [], flaps: [], strobes: [], wheelSpin: [], frontSteer: [], flames: [], legs: [], body: g };
   outer.add(g);
-  const org = PH_(0xf26a1b, { roughness: 0.3, clearcoat: 0.8 }), tubeM = M_(0x1b1d20, { roughness: 0.4, metalness: 0.6 });
-  const dark = M_(0x141517, { roughness: 0.75 }), rub = M_(0x131314, { roughness: 0.95, envMapIntensity: 0.05 });
-  const alu = M_(0xb9bdc3, { roughness: 0.3, metalness: 0.9 }), wingM = PH_(0xf4f4f0, { roughness: 0.45, clearcoat: 0.3 });
-  wingM.side = THREE.DoubleSide;
+  const paint = PH_(0xf26a1b, { roughness: 0.28, clearcoat: 0.9 }), white = PH_(0xf4f4f0, { roughness: 0.4, clearcoat: 0.4 }), tubeM = M_(0x1b1d20, { roughness: 0.4, metalness: 0.6 });
+  const dark = M_(0x141517, { roughness: 0.75 }), rub = M_(0x101011, { roughness: 0.95, envMapIntensity: 0.05 }), alu = M_(0xb9bdc3, { roughness: 0.3, metalness: 0.9 });
+  const shock = M_(0xf5c400, { roughness: 0.4 }), blue = PH_(0x1e63c8, { roughness: 0.3, clearcoat: 0.8 });
+  const lampM = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d0, emissiveIntensity: 1.3 }), tailM = new THREE.MeshStandardMaterial({ color: 0xff2a1a, emissive: 0xff2010, emissiveIntensity: 0.9 });
+  const wingM = PH_(0xf4f4f0, { roughness: 0.45, clearcoat: 0.3 }); wingM.side = THREE.DoubleSide;
   const box = (w, h, d, m, x, y, z, p = g) => mk(new THREE.BoxGeometry(w, h, d), m, p, x, y, z);
-  const T = (a, b, r = 0.022) => rod(g, a, b, r, tubeM);
-  // tub, nose, side pods, engine
-  box(0.6, 0.06, 2.1, dark, 0, -0.14, 0); box(0.46, 0.24, 0.75, org, 0, 0.02, -0.95).rotation.x = 0.12;
-  box(0.3, 0.14, 0.3, org, 0, -0.03, -1.38).rotation.x = 0.3;
-  [-1, 1].forEach(sd => { box(0.14, 0.3, 0.9, org, sd * 0.36, 0.03, 0.05); box(0.06, 0.26, 0.6, dark, sd * 0.3, 0.02, -0.5); });
-  box(0.46, 0.34, 0.5, dark, 0, 0.08, 0.72); box(0.5, 0.05, 0.56, org, 0, 0.28, 0.72);
-  rod(g, [0.2, 0.1, 0.9], [0.24, 0.3, 1.2], 0.03, alu);
-  // roll cage: main hoop, front hoop, braces
+  const T = (a, b, r = 0.024) => rod(g, a, b, r, tubeM);
+  // a side profile ([z, y] points, nose at -z) extruded across the car to width w, with rounded edges
+  const ext = (sh, w, bev = 0.025) => { const geo = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: 2, curveSegments: 10 }); geo.rotateY(-Math.PI / 2); geo.translate(w / 2, 0, 0); return geo; };
+  const slab = (pts, w, m, x = 0) => { const sh = new THREE.Shape(); pts.forEach(([z, y], i) => i ? sh.lineTo(z, y) : sh.moveTo(z, y)); return mk(ext(sh, w), m, g, x, 0, 0); };
+  // body: droop-snoot hood, open cockpit, rear deck over the engine; black belly pan underneath
+  slab([[-1.36, -0.18], [-1.52, -0.04], [-1.5, 0.08], [-0.66, 0.3], [-0.5, 0.3], [-0.44, 0.13], [0.42, 0.13], [0.5, 0.36], [1.28, 0.33], [1.4, 0.1], [1.28, -0.17]], 0.76, paint);
+  slab([[-1.4, -0.17], [-1.18, -0.28], [1.12, -0.28], [1.3, -0.17]], 0.62, dark);
+  { const s = box(0.24, 0.02, 0.84, white, 0, 0.222, -1.07); s.rotation.x = -0.256; }
+  { const s = box(0.5, 0.02, 0.7, dark, 0, 0.372, 0.88); s.rotation.x = 0.04; }
+  [-1, 1].forEach(sd => { box(0.02, 0.2, 0.34, white, sd * 0.412, -0.02, 0.02); box(0.02, 0.07, 0.7, blue, sd * 0.412, 0.2, 0.9); box(0.02, 0.05, 0.6, blue, sd * 0.412, 0.1, -0.95).rotation.x = -0.2; });
+  // fenders: an arch over each wheel, with room for the wheel to come up into it
+  { const sh = new THREE.Shape(); sh.absarc(0, 0, 0.56, 0.2, Math.PI - 0.2, false); sh.absarc(0, 0, 0.5, Math.PI - 0.2, 0.2, true);
+    const fg = ext(sh, 0.3, 0.015);
+    [[-1, -0.95], [1, -0.95], [-1, 0.95], [1, 0.95]].forEach(([sd, z]) => { mk(fg, paint, g, sd * 0.72, -0.2, z); box(0.14, 0.035, 0.5, paint, sd * 0.5, 0.33, z); }); }
+  // nose: headlights, grille, bumper; tail: lights, bumper, twin exhausts, spare wheel on the deck
   [-1, 1].forEach(sd => {
-    T([sd * 0.33, -0.12, 0.3], [sd * 0.27, 0.74, 0.3], 0.026); T([sd * 0.3, -0.12, -0.4], [sd * 0.24, 0.36, -0.4]);
-    T([sd * 0.27, 0.74, 0.3], [sd * 0.24, 0.36, -0.4]); T([sd * 0.27, 0.74, 0.3], [sd * 0.24, 0.12, 0.98]);
-    T([sd * 0.24, 0.36, -0.4], [sd * 0.18, 0.08, -1.2]);
+    mk(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 14).rotateX(Math.PI / 2), lampM, g, sd * 0.24, 0.0, -1.53);
+    box(0.12, 0.07, 0.04, tailM, sd * 0.27, 0.2, 1.4);
+    rod(g, [sd * 0.17, 0.3, 1.1], [sd * 0.2, 0.44, 1.5], 0.035, alu);
+    T([sd * 0.3, -0.12, -1.42], [sd * 0.34, -0.1, -1.6]); T([sd * 0.3, -0.08, 1.32], [sd * 0.34, -0.06, 1.5]);
+    T([sd * 0.44, -0.2, -0.5], [sd * 0.44, -0.2, 0.52], 0.03);
   });
-  T([-0.27, 0.74, 0.3], [0.27, 0.74, 0.3], 0.026); T([-0.24, 0.36, -0.4], [0.24, 0.36, -0.4]); T([-0.24, 0.12, 0.98], [0.24, 0.12, 0.98]);
-  box(0.5, 0.05, 0.05, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d0, emissiveIntensity: 1.1 }), 0, 0.8, 0.27);
-  // driver
+  box(0.3, 0.09, 0.03, dark, 0, 0.0, -1.535); T([-0.42, -0.1, -1.6], [0.42, -0.1, -1.6], 0.03); T([-0.42, -0.06, 1.5], [0.42, -0.06, 1.5], 0.03);
+  { const sp = pivot(g, 0, 0.56, 0.98); sp.rotation.x = -1.15;
+    mk(new THREE.TorusGeometry(0.25, 0.125, 10, 22), rub, sp); mk(new THREE.CylinderGeometry(0.19, 0.19, 0.16, 14).rotateX(Math.PI / 2), alu, sp); }
+  // roll cage, roof panel and light bar
+  [-1, 1].forEach(sd => {
+    T([sd * 0.36, 0.3, -0.52], [sd * 0.32, 0.88, -0.1], 0.028); T([sd * 0.32, 0.88, -0.1], [sd * 0.32, 0.9, 0.45], 0.028); T([sd * 0.32, 0.9, 0.45], [sd * 0.36, 0.34, 0.52], 0.028);
+    T([sd * 0.32, 0.9, 0.45], [sd * 0.3, 0.36, 1.26]); T([sd * 0.36, 0.34, 0.52], [sd * 0.32, 0.88, -0.1], 0.018);
+  });
+  T([-0.32, 0.88, -0.1], [0.32, 0.88, -0.1], 0.028); T([-0.32, 0.9, 0.45], [0.32, 0.9, 0.45], 0.028); T([-0.36, 0.34, 0.52], [0.32, 0.9, 0.45], 0.018); T([0.36, 0.34, 0.52], [-0.32, 0.9, 0.45], 0.018);
+  box(0.66, 0.03, 0.6, paint, 0, 0.915, 0.17); box(0.6, 0.035, 0.05, dark, 0, 0.955, -0.1);
+  for (let i = -2; i <= 2; i++) mk(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 12).rotateX(Math.PI / 2), lampM, g, i * 0.125, 1.0, -0.115);
+  // seat, driver, wheel
+  box(0.4, 0.5, 0.08, dark, 0, 0.34, 0.36).rotation.x = -0.2; box(0.4, 0.06, 0.4, dark, 0, 0.1, 0.16);
   const pilot = new THREE.Group(); g.add(pilot); parts.pilot = pilot;
-  mk(new THREE.CylinderGeometry(0.15, 0.17, 0.42, 12), dark, pilot, 0, 0.14, 0.12).rotation.x = -0.25;
-  mk(new THREE.SphereGeometry(0.14, 18, 14), org, pilot, 0, 0.47, 0.06);
-  mk(new THREE.SphereGeometry(0.142, 18, 10, Math.PI * 1.1, Math.PI * 0.8, 1.0, 0.7), M_(0x111111, { roughness: 0.05, metalness: 0.8 }), pilot, 0, 0.47, 0.06);
-  mk(new THREE.TorusGeometry(0.11, 0.012, 8, 20), dark, g, 0, 0.22, -0.32).rotation.x = -0.4;
-  // long-travel swing arms: each hinges at the tub and the render loop swings it by that wheel's compression
-  const tire = new THREE.TorusGeometry(0.21, 0.12, 12, 26); tire.rotateY(Math.PI / 2);
-  const hub = new THREE.CylinderGeometry(0.13, 0.13, 0.16, 14); hub.rotateZ(Math.PI / 2);
-  [[-1, -0.85, true], [1, -0.85, true], [-1, 0.85, false], [1, 0.85, false]].forEach(([sd, z, front]) => {
-    const leg = pivot(g, sd * 0.25, -0.05, z);
-    rod(leg, [0, 0.04, -0.14], [sd * 0.4, -0.22, 0], 0.02, alu); rod(leg, [0, 0.04, 0.14], [sd * 0.4, -0.22, 0], 0.02, alu);
-    rod(leg, [0, -0.06, 0], [sd * 0.4, -0.27, 0], 0.016, alu);
-    rod(leg, [sd * 0.06, 0.2, 0], [sd * 0.33, -0.2, 0], 0.035, M_(0xf5c400, { roughness: 0.4 }));
-    const grp = pivot(leg, sd * 0.45, -0.24, 0), spin = new THREE.Group(); grp.add(spin);
-    mk(tire, rub, spin); mk(hub, alu, spin);
-    for (let i = 0; i < 5; i++) mk(new THREE.BoxGeometry(0.17, 0.03, 0.2), dark, spin).rotation.x = i / 5 * Math.PI;
+  mk(new THREE.CylinderGeometry(0.15, 0.17, 0.42, 12), dark, pilot, 0, 0.34, 0.2).rotation.x = -0.25;
+  mk(new THREE.SphereGeometry(0.14, 18, 14), white, pilot, 0, 0.68, 0.14);
+  mk(new THREE.SphereGeometry(0.142, 18, 10, Math.PI * 1.1, Math.PI * 0.8, 1.0, 0.7), M_(0x111111, { roughness: 0.05, metalness: 0.8 }), pilot, 0, 0.68, 0.14);
+  mk(new THREE.TorusGeometry(0.11, 0.012, 8, 20), dark, g, 0, 0.42, -0.3).rotation.x = -0.4;
+  // long-travel suspension: each corner hinges at the tub and the render loop swings it by that wheel's compression.
+  // Modelled at full droop; the wheel centre sits 0.42 out and 0.3 down from the hinge.
+  const tire = new THREE.LatheGeometry([[0.2, -0.14], [0.33, -0.15], [0.365, -0.115], [0.38, -0.04], [0.38, 0.04], [0.365, 0.115], [0.33, 0.15], [0.2, 0.14]].map(([r, y]) => new THREE.Vector2(r, y)), 22); tire.rotateZ(Math.PI / 2);
+  const rim = new THREE.CylinderGeometry(0.2, 0.2, 0.22, 16); rim.rotateZ(Math.PI / 2);
+  const bead = new THREE.TorusGeometry(0.2, 0.02, 6, 20); bead.rotateY(Math.PI / 2);
+  const knob = new THREE.BoxGeometry(0.27, 0.035, 0.075), spoke = new THREE.BoxGeometry(0.02, 0.36, 0.05);
+  [[-1, -0.95, true], [1, -0.95, true], [-1, 0.95, false], [1, 0.95, false]].forEach(([sd, z, front]) => {
+    const leg = pivot(g, sd * 0.34, -0.1, z), W = [sd * 0.4, -0.3, 0];
+    [-0.17, 0.17].forEach(dz => { rod(leg, [0, 0.07, dz], [W[0], W[1] + 0.1, 0], 0.02, alu); rod(leg, [0, -0.08, dz], [W[0], W[1] - 0.08, 0], 0.024, alu); });
+    rod(leg, [sd * 0.02, 0.36, 0], [sd * 0.16, 0.06, 0], 0.045, shock); rod(leg, [sd * 0.16, 0.06, 0], [sd * 0.32, -0.3, 0], 0.02, alu);
+    rod(leg, [sd * 0.38, -0.44, 0], [sd * 0.38, -0.16, 0], 0.03, tubeM);
+    const grp = pivot(leg, sd * 0.42, -0.3, 0), spin = new THREE.Group(); grp.add(spin);
+    mk(tire, rub, spin); mk(rim, alu, spin); mk(bead, blue, spin, sd * 0.11, 0, 0);
+    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, kb = mk(knob, rub, spin, (i % 2 ? 0.02 : -0.02), Math.cos(a) * 0.378, Math.sin(a) * 0.378); kb.rotation.x = a; }
+    for (let i = 0; i < 3; i++) mk(spoke, dark, spin, sd * 0.112, 0, 0).rotation.x = i / 3 * Math.PI;
     parts.wheelSpin.push(spin); if (front) parts.frontSteer.push(grp); parts.legs.push(leg);
   });
   // the glider: two wing panels and a tail on a boom, all scaled from nothing by the render loop
   const WS = 5.2;
-  const wing = sd => { const p = pivot(g, sd * 0.3, 0.72, 0.3); p.rotation.z = sd * 0.07;
+  const wing = sd => { const p = pivot(g, sd * 0.3, 0.9, 0.2); p.rotation.z = sd * 0.07;
     mk(wingGeo([[0, -0.6], [sd * WS, -0.25], [sd * WS, 0.3], [0, 0.6]], 0.1), wingM, p);
-    box(0.04, 0.02, 0.7, org, sd * WS * 0.97, 0.07, 0.02, p); box(0.5, 0.015, 1.05, org, sd * 0.6, 0.105, 0, p); return p; };
-  const tail = pivot(g, 0, 0.3, 0.95);
+    box(0.04, 0.02, 0.7, paint, sd * WS * 0.97, 0.07, 0.02, p); box(0.5, 0.015, 1.05, paint, sd * 0.6, 0.105, 0, p); return p; };
+  const tail = pivot(g, 0, 0.42, 1.2);
   rod(tail, [0, 0, 0], [0, 0.15, 2.3], 0.035, tubeM);
   mk(wingGeo([[-1.3, 1.85], [1.3, 1.85], [1.3, 2.4], [-1.3, 2.4]], 0.05), wingM, tail, 0, 0.14, 0);
   mk(finGeo([[1.8, 0.14], [2.4, 0.14], [2.4, 1.05], [2.1, 1.05]], 0.05), wingM, tail);
@@ -2118,14 +2142,16 @@ AIRCRAFT.modelt = { name: 'Model T Flivver', heli: true, car: true, model: MT.g,
   flaps: false, cam: { d: 9, h: 2.8 }, size: 4, eye: new V3(-0.28, 0.82, 0.2), wingCam: new V3(0, 0.75, -1.6),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.4, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.4, debris: [0x0c0c0e, 0xc9a24a, 0xb98a4e] };
-// car on the ground, glider in the air: G grows the wings, T folds them. Soft progressive springs and a high hardV
-// so it shrugs off landings that would wreck anything else here.
+// car on the ground, glider in the air: G grows the wings, T folds them. Long soft springs with heavy damping deep
+// in the travel, so it floats over rough ground and shrugs off landings. Traction is deliberately far better than
+// any real tire (grip, offGrip), the mass is treated as sitting at axle height (cgH) so it cannot trip over that
+// grip, and steerA asks the front wheels for a set cornering force at any speed.
 AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, parts: BG.parts, M: 320, S: 16, I: new V3(380, 520, 300),
-  wheels: [[-0.7, -0.85, true], [0.7, -0.85, true], [-0.7, 0.85, false], [0.7, 0.85, false]].map(([x, z, f]) => ({ p: new V3(x, -0.62, z), k: 5200, k2: 110000, c: 800, c2: 14000, steer: f, front: f })),
-  hardV: 14, gear: BG.parts.legs, gearArm: 0.45, wheelR: 0.33, pwr: 115000, accMax: 14, grip: 1.15, steerK: 0.75, cgH: 0.44, rollK: 0.012,
-  hard: hardPts([[0, 0.84, 0.3]]),
+  wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.78, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
+  hardV: 14, gear: BG.parts.legs, gearArm: 0.42, wheelR: 0.38, pwr: 150000, accMax: 16, grip: 2.4, offGrip: 1.25, steerA: 48, cgH: 0.72, rollK: 0.012,
+  hard: hardPts([[0, 0.95, 0.17]]),
   thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: false,
-  cam: { d: 9, h: 2.4 }, size: 6, eye: new V3(0, 0.5, -0.05), wingCam: new V3(-1.4, 0.9, 0.5),
+  cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 24, fireScale: 1.2, debris: [0xf26a1b, 0x1b1d20, 0xf4f4f0] };
 AIRCRAFT.boat = { name: 'Hydrofoil', boat: true, model: BOAT.g, parts: BOAT.parts, M: 1400, S: 1, I: new V3(1400 * 3, 1400 * 5, 1400 * 1.2), wheels: [],
@@ -3177,7 +3203,8 @@ const fwd = new V3(), up = new V3(), right = new V3();
 const ease = (cur, tgt, dt) => cur + (tgt - cur) * (1 - Math.exp(-dt / (Math.abs(tgt) > Math.abs(cur) ? 0.32 * TW.rampIn : 0.2 * TW.rampOut)));
 const expo = v => { const e = Math.min(1, 0.65 * TW.expo); return v * (1 - e + e * v * v); };
 // car steering lock shrinks with speed so full key = the most turn the tires can actually hold, never a plow or a spin
-const steerLock = () => Math.min(0.6, 1.5 * Math.atan(2.55 * 13 * (AC.steerK || 1) * TW.grip / Math.max(1, P.v.lengthSq()))) * TW.steer * (P.boost || 1);
+// steerA: wheelbase x the cornering acceleration full lock asks for, so the car turns as hard at 150 km/h as at 30
+const steerLock = () => (AC.steerA ? Math.min(0.62, Math.atan(AC.steerA * TW.grip / Math.max(1, P.v.lengthSq()))) : Math.min(0.6, 1.5 * Math.atan(2.55 * 13 * (AC.steerK || 1) * TW.grip / Math.max(1, P.v.lengthSq())))) * TW.steer * (P.boost || 1);
 
 function stepPlane(dt) {
   if (AC.boat) return stepBoat(dt);
@@ -3336,7 +3363,9 @@ function stepPlane(dt) {
     const vpn = vp.dot(gN);
     if (!lc && vpn < -(A.car ? 15 : A.hardV || 4.5)) { crash('Hard landing −50'); return; }
     wh.cmp = d;
-    const N = Math.max(0, wh.k * d + (wh.k2 || 0) * d * d - (wh.c + (wh.c2 || 0) * d) * vpn); // k2/c2: stiffer and better damped deep in the travel
+    // k2/c2: stiffer and better damped deep in the travel; bump: softer damping on the way in than on the way out,
+    // like an off-road shock, so the wheel gives over a bump and the body does not get kicked
+    const N = Math.max(0, wh.k * d + (wh.k2 || 0) * d * d - (wh.c + (wh.c2 || 0) * d) * vpn * (vpn < 0 && wh.bump ? wh.bump : 1));
     const fh = fwd.clone();
     if (wh.steer) fh.applyAxisAngle(up, wh.front ? expo(P.steer) * steerLock() : -ctl.y * 0.45 / (1 + P.v.lengthSq() / 30));
     fh.addScaledVector(gN, -fh.dot(gN));
@@ -3348,7 +3377,7 @@ function stepPlane(dt) {
     if (A.car) {
       const tnw = inTrackBox(pt.x, pt.z, 0) ? trackNear(pt.x, pt.z) : null;
       const onRoad = (tnw && tnw.d < TRK.half + 1.4) || onRunway(pt) || (ROADN.n > 0 && (() => { const rn = roadNear(pt.x, pt.z); return rn && rn.d < ROADN.half + 0.8; })());
-      const muS = (onRoad ? 1.4 : 0.85) * TW.grip * (A.grip || 1);
+      const muS = (onRoad ? 1.4 : A.offGrip || 0.85) * TW.grip * (A.grip || 1);
       fl = lc ? 0 : -vl * M * 25; // in a loop the corkscrew lane does the sideways work, not the tires
       if (carBrake) fr = Math.abs(vf) < 0.4 ? -vf * M * 3 : -Math.sign(vf) * muS * N * 0.95;
       else fr = carDrive * 0.25 - vf * M * (A.rollK || 0.004);
@@ -3821,15 +3850,15 @@ function loop(now) {
     // chases the acceleration the car is actually pulling, so it rocks and settles; the swing arms take up the difference
     let bodyP = 0, bodyR = 0;
     if (pt.body) {
-      const B = SPRUNG, fw = new V3(0, 0, -1).applyQuaternion(P.q), rt = new V3(1, 0, 0).applyQuaternion(P.q);
-      const acc = P.v.clone().sub(B.pv).divideScalar(Math.max(dt, 1e-3)); B.pv.copy(P.v);
-      const lim = v => Math.max(-14, Math.min(14, v)), down = P.wheels >= 2 && !P.crashed;
-      const sm = 1 - Math.exp(-dt * 12);
-      B.al += ((down ? lim(acc.dot(fw)) : 0) - B.al) * sm; B.ar += ((down ? lim(acc.dot(rt)) : 0) - B.ar) * sm;
-      const W2 = 90, D = 7.5, h = Math.min(dt, 0.033);
-      B.vp += (W2 * (B.al * 0.0125 - B.p) - D * B.vp) * h; B.p += B.vp * h;
-      B.vr += (W2 * (B.ar * 0.016 - B.r) - D * B.vr) * h; B.r += B.vr * h;
-      bodyP = B.p = Math.max(-0.2, Math.min(0.2, B.p)); bodyR = B.r = Math.max(-0.24, Math.min(0.24, B.r));
+      // fed by how fast the speed is changing and how hard it is cornering (speed x yaw rate), not by raw bumps
+      const B = SPRUNG, fw = new V3(0, 0, -1).applyQuaternion(P.q), vf = P.v.dot(fw), down = P.wheels >= 2 && !P.crashed;
+      const yawRate = P.w.clone().applyQuaternion(P.q).y, lim = (v, m) => Math.max(-m, Math.min(m, v)), sm = 1 - Math.exp(-dt * 9);
+      B.al += ((down ? lim((vf - B.pv.x) / Math.max(dt, 1e-3), 30) : 0) - B.al) * sm; B.pv.x = vf;
+      B.ar += ((down ? lim(-vf * yawRate, 34) : 0) - B.ar) * sm;
+      const W2 = 80, D = 8, h = Math.min(dt, 0.033);
+      B.vp += (W2 * (lim(B.al * 0.0075, 0.15) - B.p) - D * B.vp) * h; B.p += B.vp * h;
+      B.vr += (W2 * (lim(B.ar * 0.0058, 0.17) - B.r) - D * B.vr) * h; B.r += B.vr * h;
+      bodyP = B.p = lim(B.p, 0.2); bodyR = B.r = lim(B.r, 0.22);
       pt.body.rotation.set(bodyP, 0, bodyR);
     }
     // sprung gear legs swing up and out by however far the physics has that wheel compressed (plus, on a sprung
