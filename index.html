@@ -75,6 +75,12 @@ canvas{position:fixed;inset:0;display:block}
 #sight{position:fixed;left:0;top:0;pointer-events:none;transform:translate(-50%,-50%);filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
 #sight svg{display:block}
 #sightt{position:absolute;left:50%;top:62px;transform:translateX(-50%);font-weight:800;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap}
+#tpbtn{position:fixed;right:14px;top:calc(136px + var(--mapH) + env(safe-area-inset-top,0px));font:inherit;font-weight:700;font-size:16px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;backdrop-filter:blur(6px)}
+#tp{pointer-events:auto;z-index:30}
+#tp > div{max-width:520px;padding:18px 22px}
+#tp h2{margin-bottom:4px}
+#tpmap{position:static;display:block;width:min(420px,46vh);height:min(420px,46vh);margin:10px auto;border-radius:10px;cursor:crosshair}
+#tplist button{font-size:15px;padding:5px 9px}
 #twbtn{position:fixed;right:14px;top:calc(96px + var(--mapH) + env(safe-area-inset-top,0px));font:inherit;font-weight:700;font-size:16px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;backdrop-filter:blur(6px)}
 #tw{position:fixed;right:14px;top:calc(138px + var(--mapH) + env(safe-area-inset-top,0px));width:270px;max-height:calc(100% - 200px - var(--mapH));overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;backdrop-filter:blur(6px)}
 #tw[hidden]{display:none}
@@ -182,6 +188,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
         <dt><kbd>N</kbd></dt><dd>Big / small map</dd>
         <dt><kbd>-</kbd> <kbd>=</kbd></dt><dd>Zoom the map out / in</dd>
         <dt><kbd>Space</kbd></dt><dd>Drop a ball (Drop Zone, Truck Bomb)</dd>
+        <dt><kbd>Tab</kbd></dt><dd>Teleport map (Freestyle only)</dd>
         <dt><kbd>C</kbd></dt><dd>Bomb sight on / off (Glide Buggy: wings out / folded)</dd>
         <dt><kbd>O</kbd></dt><dd>Tweaks panel</dd>
         <dt><kbd>U</kbd></dt><dd>Sound on / off</dd>
@@ -194,6 +201,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
   </div>
 </div>
 <button id="twbtn" type="button">Tweaks</button>
+<button id="tpbtn" type="button" hidden>Teleport</button>
 <div id="tw" hidden>
   <div class="twhead"><b>Tweaks</b><span class="sm">middle = stock</span><button id="twreset" type="button">Reset</button></div>
   <button id="stickybtn" type="button" style="font:inherit;font-weight:700;font-size:15px;width:100%;padding:6px;margin:4px 0 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer">Sticky stick: off</button>
@@ -235,6 +243,12 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
     <div class="rows" id="rows"></div>
     <div class="go" id="overgo">Press Enter for round 2</div>
   </div>
+</div>
+
+<div class="card" id="tp" hidden>
+  <div><h2>Teleport</h2><div class="sm">Click anywhere on the map, or pick a place below (keys 1 to 9). Tab or Esc closes.</div>
+    <canvas id="tpmap" width="440" height="440"></canvas>
+    <div class="modes" id="tplist" style="margin:0"></div></div>
 </div>
 
 <div class="card" id="paused" hidden>
@@ -2556,7 +2570,7 @@ function respawn() {
 Object.assign(MODE_INFO, {
   balloon: { name: 'Balloon Pop', desc: 'Twenty-five balloons drifting over the field. Fly through them. Pop them back to back, within 4 seconds of each other, for a combo multiplier. 90 seconds.' },
   deadstick: { name: 'Deadstick', desc: 'Your engine just quit. You’re high and far out, and the only throttle you have left is gravity. Glide back and touch down on the orange bar. Closest and softest wins. Too high? Slip it or S-turn.' },
-  free: { name: 'Freestyle', desc: 'No clock, no score, no targets. Take anything in the hangar anywhere on the map: fly the canyon, drive the mountain roads and tunnels, lap the circuit, land on a bridge. Crash and you carry on from where you were.' },
+  free: { name: 'Freestyle', desc: 'No clock, no score, no targets. Take anything in the hangar anywhere on the map: fly the canyon, drive the mountain roads and tunnels, lap the circuit, land on a bridge. Crash and you carry on from where you were. Tab opens a map to teleport anywhere.' },
   drift: { name: 'Arcade Drift', desc: 'Pure video game. You get the GT Coupe on the circuit with fake physics: the nose goes where you steer, the tail hangs out, and nothing can kill it. No crashes, no rollovers, walls just bounce you. Slide for points: the longer you hold a drift the bigger the multiplier, and touching a barrier drops it. I gas, K brake, J/L steer, B handbrake for big angle. Two minutes.' },
   truck: { name: 'Truck Bomb', desc: 'A pickup is doing laps on the dirt road with a target in the bed. Bomb it. It speeds up every time you hit it. Eight balls, two minutes.' },
 });
@@ -3237,7 +3251,7 @@ function setAircraft(id) {
   });
 }
 function toMenu() {
-  game.state = 'title';
+  game.state = 'title'; $('tpbtn').hidden = true;
   $('over').hidden = true; $('title').hidden = false;
   pylonGroup.visible = canyonGroup.visible = true;
   clearExtras();
@@ -3246,6 +3260,12 @@ function toMenu() {
 window.addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
   if (!e.repeat) audioInit();
+  if (tpOpen) {
+    e.preventDefault();
+    if (!e.repeat) { const m = /^Digit([1-9])$/.exec(e.code); if (m) { const pl = PLACES[m[1] - 1]; teleportTo(pl[1], pl[2], pl[0]); toggleTp(); } else if (e.code === 'Tab' || e.code === 'Escape' || e.code === 'KeyP') toggleTp(); }
+    return;
+  }
+  if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat && $('help').hidden) toggleTp(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleHelp(); return; }
   if (e.code === 'Escape' && !$('help').hidden) { toggleHelp(); return; }
   if (!e.repeat && e.code === 'KeyU') { SND.on = !SND.on; toast(SND.on ? 'Sound on' : 'Sound off'); }
@@ -3302,6 +3322,83 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const c in keys) keys[c] = false; if (game.state === 'flying') togglePause(); });
+
+// ---------- teleport (Freestyle): Tab opens the whole map; click it or pick a named place ----------
+const PLACES = [['Airfield', 0, 100], ['Race track', TRK.pts[3].x, TRK.pts[3].z], ['Canyon', canX(-2600), -2600], ['Desert', 0, -4800], ['Sierra foothills', -300, -5180],
+  ['Snow mountains', -4500, -600], ['Forest mountains', 4300, -1400], ['Glades', -400, 4300], ['Plateau', 1250, -3150]];
+let tpOpen = false;
+// cars arrive parked: on the road or circuit if one is within 40 m, otherwise on the nearest dry ground. Aircraft arrive
+// flying, clear of the terrain around the spot. The boat goes to the nearest stretch of river.
+function teleportTo(x, z, name) {
+  const R = Math.hypot(x, z); if (R > 5600) { x *= 5600 / R; z *= 5600 / R; }
+  lockOff(); TRAIL.length = 0;
+  const f = new V3(0, 0, -1).applyQuaternion(P.q).setY(0); if (f.lengthSq() < 1e-4) f.set(0, 0, -1); f.normalize();
+  const sp = P.crashed ? 0 : P.v.length();
+  if (name === 'Airfield') resetPlane();
+  else if (AC.boat) spawnAir(new V3(x, 0, z), f, 0);
+  else if (AC.car) {
+    const rn = ROADN.n > 0 ? roadNear(x, z) : null, tn = inTrackBox(x, z, 0) ? trackNear(x, z) : null;
+    if (tn && tn.d < 40 && !(rn && rn.d < tn.d)) spawnOnTrack(tn.i);
+    else {
+      let gy;
+      if (rn && rn.d < 40 && !ROADN.tun[rn.i]) { const q = ROADN.pts[rn.i], t = ROADN.tan[rn.i], sg = f.x * t.x + f.z * t.z < 0 ? -1 : 1; x = q.x; z = q.z; f.set(t.x * sg, 0, t.z * sg); gy = ROADN.h[rn.i]; }
+      else {
+        // off the roads a parked car needs somewhere dry and close to level, or it rolls away: take the nearest such spot
+        const dry = (a, b) => waterAt(a, b) === null && [[12, 0], [-12, 0], [0, 12], [0, -12]].every(([u, v]) => waterAt(a + u, b + v) === null);
+        const flat = (a, b) => { const h = hMesh(a, b); return [[6, 0], [-6, 0], [0, 6], [0, -6], [14, 0], [-14, 0], [0, 14], [0, -14]].every(([u, v]) => Math.abs(hMesh(a + u, b + v) - h) < Math.hypot(u, v) * 0.1); };
+        if (!(dry(x, z) && flat(x, z))) {
+          let fb = null;
+          search: for (let r = 15; r <= 700; r += 15) for (let a = 0; a < 16; a++) {
+            const nx = x + Math.cos(a * 0.3927) * r, nz = z + Math.sin(a * 0.3927) * r; if (Math.hypot(nx, nz) > 5700 || !dry(nx, nz)) continue;
+            if (flat(nx, nz)) { fb = [nx, nz]; break search; } if (!fb) fb = [nx, nz];
+          }
+          if (fb) { x = fb[0]; z = fb[1]; }
+        }
+        gy = groundAt(x, z, hMesh(x, z) + 2);
+      }
+      spawnAir(new V3(x, gy - AC.wheels[0].p.y + 0.05, z), f, 0);
+      // sit it square on the slope, so a steep hillside does not bury one side of the car
+      const e = 1.2, n = new V3(groundAt(x - e, z, gy + 2) - groundAt(x + e, z, gy + 2), 2 * e, groundAt(x, z - e, gy + 2) - groundAt(x, z + e, gy + 2)).normalize();
+      P.q.premultiply(new THREE.Quaternion().setFromUnitVectors(WORLD_UP, n)); P.pos.y += (1 - n.y) * 1.5;
+      P.v.set(0, 0, 0); P.throttle = 0; P.thrArm = false; P.wing = P.wingT = 0; P.wheels = AC.wheels.length;
+    }
+  } else {
+    // point it the way the ground ahead is lowest (keeping the old heading if that is as good), and start above everything
+    // in the first kilometre of that line, so it never arrives aimed at a mountainside
+    let top = -1e9; for (let dx = -200; dx <= 200; dx += 100) for (let dz = -200; dz <= 200; dz += 100) top = Math.max(top, hMesh(x + dx, z + dz));
+    const h0 = Math.atan2(f.x, f.z); let best = 1e9, bd = f.clone();
+    for (let a = 0; a < 12; a++) {
+      const an = h0 + a * Math.PI / 6, dx = Math.sin(an), dz = Math.cos(an); let m = -1e9;
+      for (let d = 100; d <= 2400; d += 100) { const qx = x + dx * d, qz = z + dz * d; m = Math.max(m, Math.hypot(qx, qz) > 5800 ? 1e6 : hMesh(qx, qz) - d * 0.06); }
+      if (m < best - 15) { best = m; bd.set(dx, 0, dz); }
+    }
+    spawnAir(new V3(x, Math.max(top, best) + (AC.heli ? 30 : 80), z), bd, Math.max(sp, AC.vSpawn || 0));
+  }
+  toast(name ? `Teleported: ${name}` : 'Teleported');
+}
+function drawTp() {
+  const c = $('tpmap'), g = c.getContext('2d'), D = c.width, W = (x, z) => [(x + MAP.EXT) / (MAP.EXT * 2) * D, (z + MAP.EXT) / (MAP.EXT * 2) * D];
+  g.drawImage(MAP.bg, 0, 0, MAP.S, MAP.S, 0, 0, D, D);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.setLineDash([5, 5]); g.beginPath(); g.arc(D / 2, D / 2, 5600 / (MAP.EXT * 2) * D, 0, 7); g.stroke(); g.setLineDash([]);
+  g.font = '800 13px "Barlow Semi Condensed", Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  PLACES.forEach(([, x, z], i) => { const [a, b] = W(x, z); g.fillStyle = '#16181b'; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(a, b, 9, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.fillText(String(i + 1), a, b + 0.5); });
+  const [a, b] = W(P.pos.x, P.pos.z), fw = new V3(0, 0, -1).applyQuaternion(P.q);
+  g.save(); g.translate(a, b); g.rotate(Math.atan2(fw.x, -fw.z)); g.fillStyle = '#ff7a1a'; g.strokeStyle = '#111'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(0, -10); g.lineTo(7, 8); g.lineTo(0, 4); g.lineTo(-7, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
+}
+function toggleTp() {
+  if (tpOpen) { tpOpen = false; $('tp').hidden = true; if (game.state === 'paused') game.state = 'flying'; return; }
+  if (game.state !== 'flying') return;
+  if (game.mode !== 'free') { toast('Teleport works in Freestyle'); return; }
+  tpOpen = true; game.state = 'paused'; for (const c in keys) keys[c] = false;
+  drawTp(); $('tp').hidden = false;
+}
+{
+  const box = $('tplist');
+  PLACES.forEach(([name, x, z], i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = `${i + 1} ${name}`; b.addEventListener('click', () => { b.blur(); teleportTo(x, z, name); toggleTp(); }); box.appendChild(b); });
+  $('tpmap').addEventListener('click', e => { const r = $('tpmap').getBoundingClientRect(); teleportTo(((e.clientX - r.left) / r.width * 2 - 1) * MAP.EXT, ((e.clientY - r.top) / r.height * 2 - 1) * MAP.EXT); toggleTp(); });
+  $('tpbtn').addEventListener('click', () => { $('tpbtn').blur(); toggleTp(); });
+}
 
 let helpPaused = false;
 function toggleHelp() {
@@ -3802,7 +3899,7 @@ function startRound() {
   toast(`Round ${game.round}`);
 }
 function startGame() {
-  lockOff();
+  lockOff(); $('tpbtn').hidden = game.mode !== 'free';
   game.lives = LIVES; TRAIL.length = 0; trailAt = 0;
   pylonGroup.visible = true;
   canyonGroup.visible = true;
