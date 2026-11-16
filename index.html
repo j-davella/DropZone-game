@@ -216,6 +216,8 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
     </div>
     <div class="sm" style="margin:-6px 0 6px">Aircraft (click, or <kbd>[</kbd> <kbd>]</kbd>)</div>
     <div class="modes" id="acs"></div>
+    <div class="sm" style="margin:-6px 0 6px">Graphics <span id="gfxnote"></span></div>
+    <div class="modes" id="gfx"><button data-g="full">Full</button><button data-g="lite">Lite</button><button data-g="potato">Potato</button></div>
     <p class="keyline"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly &nbsp; <kbd>R</kbd><kbd>F</kbd> throttle &nbsp; <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> drive &nbsp; <kbd>V</kbd> views &nbsp; <kbd>H</kbd> every control</p>
     <div class="go">Pick a mode, then press Enter</div>
   </div>
@@ -240,18 +242,37 @@ const V3 = THREE.Vector3;
 const $ = id => document.getElementById(id);
 const col = h => new THREE.Color(h).convertSRGBToLinear();
 
+// ---------- graphics level: same world and physics at every level, only how much of it is drawn and how finely ----------
+// px: cap on rendered pixels per screen pixel; shadow: shadow map size (0 = none); veg: share of trees and rocks kept;
+// lod: distances at which the ground drops to half, quarter and eighth detail; fog: where haze starts and ends
+const GFXS = {
+  full: { name: 'Full', px: 2, aa: true, shadow: 2048, soft: true, veg: 1, vegShadow: true, lod: [900, 2000, 3800], fog: [700, 4600], clouds: 70, map: 512 },
+  lite: { name: 'Lite', px: 1, aa: false, shadow: 1024, soft: false, veg: 0.35, vegShadow: false, lod: [450, 1100, 2400], fog: [500, 3600], clouds: 36, map: 256 },
+  potato: { name: 'Potato', px: 0.75, aa: false, shadow: 0, soft: false, veg: 0.1, vegShadow: false, lod: [250, 700, 1500], fog: [350, 2400], clouds: 16, map: 192 },
+};
+const GFX_PICK = (() => {
+  let saved = null;
+  try { saved = new URLSearchParams(location.search).get('gfx') || localStorage.getItem('dropzone-gfx'); } catch (e) {}
+  if (GFXS[saved]) return { id: saved, auto: false };
+  // nothing chosen: guess from what the browser says about the machine (memory is only reported by some browsers)
+  const mem = navigator.deviceMemory || 0, cores = navigator.hardwareConcurrency || 0, phone = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  const id = (mem && mem <= 2) || (cores && cores <= 2) ? 'potato' : (mem && mem <= 4) || (cores && cores <= 4) || phone ? 'lite' : 'full';
+  return { id, auto: true };
+})();
+const GFX = GFXS[GFX_PICK.id];
+
 // ---------- renderer / scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: GFX.aa, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, GFX.px));
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = GFX.shadow > 0;
+renderer.shadowMap.type = GFX.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 const HORIZON = 0xc8dbe8, ZENITH = 0x3a78c0;
 scene.background = col(HORIZON);
-scene.fog = new THREE.Fog(col(HORIZON), 700, 4600);
+scene.fog = new THREE.Fog(col(HORIZON), GFX.fog[0], GFX.fog[1]);
 
 const camera = new THREE.PerspectiveCamera(65, 1, 0.3, 14000);
 const SUN_DIR = new V3(200, 380, 140).normalize();
@@ -259,8 +280,8 @@ const SUN_DIR = new V3(200, 380, 140).normalize();
 const hemi = new THREE.HemisphereLight(col(0xd6e9ff), col(0x4a6b3a), 0.6);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(col(0xfff1d8), 1.25);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.castShadow = GFX.shadow > 0;
+sun.shadow.mapSize.set(GFX.shadow || 512, GFX.shadow || 512);
 Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 1100 });
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
@@ -738,7 +759,7 @@ function noiseTex(base, spots, rep) {
   const terMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: tex, roughness: 1, metalness: 0 });
   const skirtMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide });
   const NCH = (TER.n - 1) / TER.CH, chunks = new Map(), SPAN = TER.CH * TER.cell;
-  const lodFor = d => d < 900 ? 1 : d < 2000 ? 2 : d < 3800 ? 4 : 8;
+  const lodFor = d => d < GFX.lod[0] ? 1 : d < GFX.lod[1] ? 2 : d < GFX.lod[2] ? 4 : 8;
   function buildChunk(cx, cz, step) {
     const N = TER.CH / step + 1, cnt = N * N, last = TER.n - 1, cell = TER.cell, cc = new THREE.Color();
     const pos = new Float32Array(cnt * 3), nor = new Float32Array(cnt * 3), colr = new Float32Array(cnt * 3), uv = new Float32Array(cnt * 2);
@@ -1104,8 +1125,8 @@ function loopContact(q, upB, ctr) {
   })();
   const fMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
   const tMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
-  const inst = (g, m, n) => { const o = new THREE.InstancedMesh(g, m, n); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; return o; };
-  const ND = 2900, NPN = 1500, NF = 1800, NS = 1500, NC = 1300, NR = 1400;
+  const inst = (g, m, n) => { const o = new THREE.InstancedMesh(g, m, n); o.castShadow = GFX.vegShadow; o.receiveShadow = true; o.frustumCulled = false; return o; };
+  const [ND, NPN, NF, NS, NC, NR] = [2900, 1500, 1800, 1500, 1300, 1400].map(v => Math.round(v * GFX.veg));
   const crowns = inst(crown, fMat, ND), trunks = inst(trunkD, tMat, ND), pines = inst(pineG, tMat, NPN), firs = inst(firG, tMat, NF),
     snowFirs = inst(snowFirG, tMat, NS), cacti = inst(cactusG, tMat, NC), rocks = inst(rockG, tMat, NR);
   const greens = [0x5f8a3a, 0x4f7c33, 0x6b9442, 0x57803a, 0x467231], fall = [0xd98a2b, 0xc4562a, 0xe0b23a, 0xb8442a, 0x9c7a2e];
@@ -1178,7 +1199,7 @@ const clouds = new THREE.Group();
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   }
   const tex = new THREE.CanvasTexture(cc); tex.encoding = THREE.sRGBEncoding;
-  for (let k = 0; k < 70; k++) {
+  for (let k = 0; k < GFX.clouds; k++) {
     const a = Math.random() * Math.PI * 2, r = 300 + Math.random() * 5500, cx = Math.cos(a) * r, cz = Math.sin(a) * r, cy = 650 + Math.random() * 400;
     const n = 6 + Math.floor(Math.random() * 6);
     for (let i = 0; i < n; i++) {
@@ -2665,7 +2686,7 @@ function finishDrive() {
 
 // ---------- minimap: north-up, centered on you ----------
 const MAP = (() => {
-  const S = 512, EXT = 6400, bg = document.createElement('canvas'); bg.width = bg.height = S;
+  const S = GFX.map, EXT = 6400, bg = document.createElement('canvas'); bg.width = bg.height = S;
   const g = bg.getContext('2d'), img = g.createImageData(S, S), mc = new THREE.Color();
   for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
     const x = px / S * EXT * 2 - EXT, z = py / S * EXT * 2 - EXT, h = hAt(x, z), o = (py * S + px) * 4;
@@ -3835,6 +3856,17 @@ function loop(now) {
 
 let savedAc = 'kolb';
 try { savedAc = localStorage.getItem('dropzone-aircraft') || 'kolb'; } catch (e) {}
+// graphics level: picked on the menu, remembered, and applied by reloading (the world is built once, at that level)
+$('gfxnote').textContent = GFX_PICK.auto ? '(picked for this device, click to change; the page reloads)' : '(click to change; the page reloads)';
+document.querySelectorAll('#gfx button').forEach(b => {
+  b.classList.toggle('on', b.dataset.g === GFX_PICK.id);
+  b.addEventListener('click', () => {
+    b.blur();
+    if (b.dataset.g === GFX_PICK.id && !GFX_PICK.auto) return;
+    try { localStorage.setItem('dropzone-gfx', b.dataset.g); } catch (e) {}
+    const u = new URL(location.href); u.searchParams.delete('gfx'); location.replace(u.href.split('#')[0]);
+  });
+});
 setAircraft(AIRCRAFT[savedAc] ? savedAc : 'kolb');
 setWind(); wind.copy(baseWind);
 renderBalls();

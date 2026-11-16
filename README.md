@@ -17,5 +17,8 @@ Kolb (long STOL wing, tundra tires on sprung bush gear, full-span flaperons to 5
 - Drive / boat: I gas, K brake/reverse, J/L steer, B handbrake
 - V views, N map, -/= map zoom, O tweaks, U sound, P pause, M menu
 
+## Graphics levels
+Full, Lite and Potato, picked on the menu and remembered (the page reloads to apply it). With nothing picked, the game guesses from the device's reported memory and cores. Same world and physics at every level; the lower ones draw fewer trees, cheaper or no shadows, fewer pixels and a shorter view. Add `?gfx=lite` or `?gfx=potato` to the address to force one.
+
 ## Tech
 three.js r128 from cdnjs, everything else hand-written in `index.html`. Settings and best scores live in your browser's localStorage.
