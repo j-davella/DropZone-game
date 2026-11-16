@@ -9,7 +9,7 @@ Kolb (long STOL wing, tundra tires on sprung bush gear, full-span flaperons to 5
 1 Drop Zone · 2 Pylon Race · 3 Canyon Run · 4 Balloon Pop · 5 Deadstick · 6 Truck Bomb · 7 Race Track · 8 Power-off 180 · 9 STOL Comp
 
 ## World
-12.8 km of streamed 8 m terrain around the airfield, with a different country on each side: desert to the north (dunes, granite tors, the red canyon, a sierra wall on the horizon), forested mountains to the east beyond the race track, glades to the south (bog pools, tree islands, a boat channel), snow mountains to the west. A ring road runs through all four, with spokes back to the field: valleys, tunnels with portals, bridges and a causeway. Physics collides with exactly the triangles you see, and roads are solid decks.
+12.8 km of streamed 8 m terrain around the airfield, with a different country on each side: desert to the north (dunes, granite tors, the red canyon, a sierra wall on the horizon), forested mountains to the east beyond the race track, glades to the south (bog pools, tree islands, a boat channel), snow mountains to the west. A ring road runs through all four, with spokes back to the field and six cross-country roads that cut straight through the mountains between them: about 70 km of road, 34 tunnels with portals, bridges and a causeway. Physics collides with exactly the triangles you see, and roads are solid decks.
 
 ## Controls (press H in game for the full list)
 - Fly: W/S pitch, A/D roll, Q/E rudder, R/F throttle, Shift extra throw

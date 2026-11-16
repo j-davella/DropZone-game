@@ -502,17 +502,17 @@ function riverNear(x, z) {
 // every road is laid on the terrain as it stands (earlier roads included), smoothed and held to an 8% grade;
 // where the mountain ends up well above the road it becomes a tunnel, where the ground drops away, a bridge
 const ROADN = { pts: [], h: [], tH: [], tun: [], brg: [], cov: [], portal: [], tan: [], rs: [], re: [], runs: [], spans: [], roads: [], n: 0,
-  half: 5, FLAT: 17, EDGE: 56, CELL: 40, grid: new Map(), sgrid: new Map() };
+  half: 5, FLAT: 17, EDGE: 56, CELL: 40, grid: new Map(), sgrid: new Map(), tgrid: new Map() };
 const inRoadBox = () => ROADN.n > 0;
-function roadNear(x, z) {
-  const l = ROADN.grid.get(Math.floor(x / ROADN.CELL) * 100000 + Math.floor(z / ROADN.CELL));
+function roadNear(x, z, grid) {
+  const l = (grid || ROADN.grid).get(Math.floor(x / ROADN.CELL) * 100000 + Math.floor(z / ROADN.CELL));
   if (!l) return null;
   let bi = -1, bd = 1e18;
   for (const i of l) { const p = ROADN.pts[i], d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; bi = i; } }
   const p = ROADN.pts[bi], t = ROADN.tan[bi], dx = x - p.x, dz = z - p.z;
   const along = dx * t.x + dz * t.z, lat = dx * -t.z + dz * t.x;
   const nx = along >= 0 ? Math.min(ROADN.re[bi], bi + 1) : Math.max(ROADN.rs[bi], bi - 1), f = Math.min(1, Math.abs(along) / 3);
-  return { i: bi, d: Math.abs(lat), lat, h: ROADN.h[bi] * (1 - f) + ROADN.h[nx] * f };
+  return { i: bi, d: Math.abs(lat), lat, al: along, h: ROADN.h[bi] * (1 - f) + ROADN.h[nx] * f };
 }
 // nearest stretch of road that sits on the ground (not tunnel, not bridge): past the end of such a stretch the
 // distance is measured to its last point, so cuttings and embankments finish in a rounded bowl, not a cliff
@@ -582,7 +582,7 @@ function addRoad(ctrl, closed) {
     for (let k = 0; k < rr.length - 1; k++) if (rr[k + 1][0] - rr[k][1] < minGap) for (let i = rr[k][1]; i <= rr[k + 1][0]; i++) f[i] = true;
   };
   // tunnels wherever the mountain is well above the road, bridges wherever the ground is well below it
-  const tun = tH.map((t, i) => t - h[i] > 17 && i > 12 && i < n - 13);
+  const tun = tH.map((t, i) => t - h[i] > 17 && i > 30 && i < n - 31);
   tidy(tun, 26, 14);
   const brg = tH.map((t, i) => !tun[i] && h[i] - t > 5 && i > 3 && i < n - 4);
   tidy(brg, 5, 10);
@@ -605,38 +605,54 @@ function addRoad(ctrl, closed) {
     R.tan.push(tan[i]); R.rs.push(o); R.re.push(o + n - 1);
   }
   R.n += n;
-  for (let i = 0; i < n; i++) { reg(R.grid, pts[i], o + i); if (!tun[i] && !brg[i]) reg(R.sgrid, pts[i], o + i); }
+  for (let i = 0; i < n; i++) { reg(R.grid, pts[i], o + i); if (!tun[i] && !brg[i]) reg(R.sgrid, pts[i], o + i); if (cov[i]) reg(R.tgrid, pts[i], o + i); }
   tr.forEach(([a, b]) => R.runs.push([o + a, o + b]));
   runsOf(brg).forEach(([a, b]) => R.spans.push([o + a, o + b]));
   R.roads.push([o, o + n - 1]);
 }
 {
-  // a point on the roads already built, on open ground, nearest to (x, z)
-  const snap = (x, z) => { let bi = 0, bd = 1e18; ROADN.pts.forEach((p, i) => { if (ROADN.tun[i] || ROADN.brg[i]) return; const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; bi = i; } }); return [ROADN.pts[bi].x, ROADN.pts[bi].z]; };
-  // 0: runway -> canyon floor -> tunnels through the plateau -> race track
-  const c = [[0, -380], [0, -800], [canX(-1250) * 0.6, -1150]];
-  for (let z = -1400; z >= -3300; z -= 160) c.push([canX(z), z]);
-  c.push([canX(-3480) + 150, -3480], [700, -3420], [1250, -3150], [1550, -2650], [1650, -2050], [1550, -1500], [1300, -1120], [1120, -870]);
-  addRoad(c);
-  // 1: the ring, clockwise from the north: sierra foothills, forest mountains, glades causeway, snow passes
+  // a point on the roads already built nearest to (x, z): on open ground, and at least 60 m along the road from
+  // any tunnel mouth or bridge, so a junction never lands on one
+  const snap = (x, z) => {
+    const R = ROADN, near = new Uint8Array(R.n);
+    for (let i = 0; i < R.n; i++) if (R.tun[i] || R.brg[i]) for (let k = Math.max(R.rs[i], i - 20); k <= Math.min(R.re[i], i + 20); k++) near[k] = 1;
+    let bi = -1, bd = 1e18; R.pts.forEach((p, i) => { if (near[i]) return; const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; bi = i; } });
+    return [R.pts[bi].x, R.pts[bi].z];
+  };
+  // the ring, clockwise from the north: sierra foothills, forest mountains, glades causeway, snow passes
   addRoad(ROUTES.ring, true);
-  // 2: north spoke: on up the canyon and out of its mouth to the ring
-  const n2 = [snap(canX(-3300), -3300)];
-  for (let z = -3500; z >= -4200; z -= 175) n2.push([canX(z), z]);
-  n2.push([canX(-4300) * 0.7, -4480], snap(0, -4800));
-  addRoad(n2);
-  // 3: east spoke, from the plateau road past the north end of the circuit into the mountains
+  // the canyon road: runway, down the canyon floor and out of its mouth to the ring
+  const c = [[0, -380], [0, -800], [canX(-1250) * 0.6, -1150]];
+  for (let z = -1400; z >= -4200; z -= 160) c.push([canX(z), z]);
+  c.push([canX(-4300) * 0.7, -4480], snap(0, -4800));
+  addRoad(c);
+  // the plateau road: leaves the canyon floor, tunnels up through the plateau and comes down to the race track
+  addRoad([snap(canX(-3080), -3080), [canX(-3230) + 70, -3250], [400, -3400], [700, -3420], [1250, -3150], [1550, -2650], [1650, -2050], [1550, -1500], [1300, -1120], [1120, -870]]);
+  // east spoke, from the plateau road past the north end of the circuit into the mountains
   addRoad([snap(...ROUTES.east[0]), ...ROUTES.east.slice(1, -1), snap(4300, -1400)]);
-  // 4: west spoke, from the north end of the field up into the snow
+  // west spoke, from the north end of the field up into the snow
   addRoad([snap(...ROUTES.west[0]), ...ROUTES.west.slice(1, -1), snap(-4500, -600)]);
-  // 5: south spoke, from the end of the runway over the river to the causeway
+  // south spoke, from the end of the runway over the river to the causeway
   addRoad([[0, 176], [140, 460], [150, 820], [0, 1250], [-170, 1780], [-220, 2400], [80, 3200], snap(-400, 4300)]);
+  // cross-country roads: these do not follow the valleys, they go through whatever is in the way
+  // north-east: east spoke over the forest ridges to the desert side of the ring
+  addRoad([snap(2150, -1740), [2450, -2500], [2250, -3350], [1950, -4000], snap(1750, -4480)]);
+  // north-west: west spoke through the snow mountains to the desert
+  addRoad([snap(-2500, -350), [-2400, -1300], [-1950, -2400], [-1800, -3400], snap(-2100, -4200)]);
+  // south-west: west spoke down through the snow to the far end of the glades
+  addRoad([snap(-3300, -450), [-3000, 500], [-3200, 1400], snap(-3900, 2300)]);
+  // south-east: south spoke along the dry edge of the glades, round the circuit to the forest side
+  addRoad([snap(150, 820), [700, 1150], [1500, 1400], [2400, 1350], [3200, 1450], snap(4300, 1700)]);
+  // glades road: south spoke west through the bogs, south of the river
+  addRoad([snap(-220, 2400), [-1200, 2720], [-2300, 3050], snap(-3000, 3400)]);
+  // sierra road: off the ring into the foot of the sierra wall and back
+  addRoad([snap(1250, -4650), [800, -5080], [-300, -5180], [-1300, -5020], snap(-1750, -4380)]);
 }
 // ground under a point at height y: inside a tunnel it's the road, not the mountain on top
 function tunnelAt(x, z, y) {
   if (!ROADN.n) return null;
-  const r = roadNear(x, z);
-  return r && ROADN.cov[r.i] && r.d < 6.6 && y < r.h + 6.4 ? r : null;
+  const r = roadNear(x, z, ROADN.tgrid);
+  return r && r.d < 6.6 && Math.abs(r.al) < 3.5 && y < r.h + 6.4 && y > r.h - 4 ? r : null;
 }
 function hAt(x, z) {
   const b = hPreRiver(x, z);
@@ -671,11 +687,10 @@ let terrainUpdate = () => {};
 // in a tunnel the ground is the road, not the mountain on top; any other road is a solid deck (so bridges hold
 // you up) unless you are underneath it
 function groundAt(x, z, y) {
+  const t = tunnelAt(x, z, y);
+  if (t) return t.h;
   const r = roadNear(x, z);
-  if (r) {
-    if (ROADN.cov[r.i]) { if (r.d < 6.6 && y < r.h + 6.4) return r.h; }
-    else if (r.d < ROADN.half + 0.7 && y > r.h - 1.5) return Math.max(r.h, hMesh(x, z));
-  }
+  if (r && !ROADN.cov[r.i] && r.d < ROADN.half + 0.7 && y > r.h - 1.5) return Math.max(r.h, hMesh(x, z));
   return hMesh(x, z);
 }
 let groundColor = null;
@@ -760,6 +775,10 @@ function noiseTex(base, spots, rep) {
   const skirtMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide });
   const NCH = (TER.n - 1) / TER.CH, chunks = new Map(), SPAN = TER.CH * TER.cell;
   const lodFor = d => d < GFX.lod[0] ? 1 : d < GFX.lod[1] ? 2 : d < GFX.lod[2] ? 4 : 8;
+  // chunks with a tunnel mouth in them: only full detail has the hillside opened up for the portal
+  const portalCh = new Set();
+  ROADN.pts.forEach((p, i) => { if (!ROADN.portal[i]) return; for (const dx of [-16, 16]) for (const dz of [-16, 16]) {
+    const cx = Math.floor((p.x + dx - TER.x0) / SPAN), cz = Math.floor((p.z + dz - TER.z0) / SPAN); if (cx >= 0 && cz >= 0 && cx < NCH && cz < NCH) portalCh.add(cx + cz * NCH); } });
   function buildChunk(cx, cz, step) {
     const N = TER.CH / step + 1, cnt = N * N, last = TER.n - 1, cell = TER.cell, cc = new THREE.Color();
     const pos = new Float32Array(cnt * 3), nor = new Float32Array(cnt * 3), colr = new Float32Array(cnt * 3), uv = new Float32Array(cnt * 2);
@@ -806,7 +825,8 @@ function noiseTex(base, spots, rep) {
     const todo = [];
     for (let cz = 0; cz < NCH; cz++) for (let cx = 0; cx < NCH; cx++) {
       const mx = TER.x0 + (cx + 0.5) * SPAN, mz = TER.z0 + (cz + 0.5) * SPAN;
-      const d = Math.max(0, Math.hypot(mx - cam.x, mz - cam.z) - SPAN * 0.7), step = lodFor(d), key = cx + cz * NCH, ch = chunks.get(key);
+      const d = Math.max(0, Math.hypot(mx - cam.x, mz - cam.z) - SPAN * 0.7), key = cx + cz * NCH, ch = chunks.get(key);
+      let step = lodFor(d); if (step === 2 && portalCh.has(key)) step = 1;
       if (!ch || ch.step !== step) todo.push([d, cx, cz, step, key]);
     }
     todo.sort((a, b) => a[0] - b[0]);
