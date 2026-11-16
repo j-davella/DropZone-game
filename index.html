@@ -133,6 +133,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
     <div class="mid" style="margin-top:6px"><span id="spd">0</span> <span id="spdu">kt</span></div>
     <div class="sm" id="spdl">airspeed</div>
     <div class="sm" id="flaps" style="margin-top:4px">Flaps up</div>
+    <div class="sm" id="lives"></div>
     <div class="sm" id="trimv">Trim neutral</div>
     <div class="mid" id="brk" style="color:var(--red);visibility:hidden">Brakes</div>
     <div id="stickpos" hidden><i></i><b></b></div>
@@ -166,7 +167,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
       <section><h3>Driving the Roadster, Model T and Glide Buggy</h3><dl>
         <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>Also drive any car on the ground: gas, steer, brake. Once the thrusters are on (or the buggy is in the air) they fly it instead</dd>
         <dt>Model T</dt><dd>Drives and flies like the Roadster, just slower on the road</dd>
-        <dt>Glide Buggy</dt><dd>No thrusters. Hit a jump, press <kbd>G</kbd> to grow the wings and fly it like a glider with W A S D and Q E. <kbd>T</kbd> folds them. It lands hard without complaint</dd>
+        <dt>Glide Buggy</dt><dd>No thrusters. Hit a jump, press <kbd>C</kbd> to grow the wings and fly it like a glider with W A S D and Q E; <kbd>C</kbd> again folds them. <kbd>G</kbd> <kbd>T</kbd> work its flaps. It rights itself and shrugs off hard landings</dd>
         <dt><kbd>I</kbd></dt><dd>Gas</dd>
         <dt><kbd>K</kbd></dt><dd>Brake, then reverse</dd>
         <dt><kbd>J</kbd> <kbd>L</kbd></dt><dd>Steer left / right</dd>
@@ -180,7 +181,7 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
         <dt><kbd>N</kbd></dt><dd>Big / small map</dd>
         <dt><kbd>-</kbd> <kbd>=</kbd></dt><dd>Zoom the map out / in</dd>
         <dt><kbd>Space</kbd></dt><dd>Drop a ball (Drop Zone, Truck Bomb)</dd>
-        <dt><kbd>C</kbd></dt><dd>Bomb sight on / off</dd>
+        <dt><kbd>C</kbd></dt><dd>Bomb sight on / off (Glide Buggy: wings out / folded)</dd>
         <dt><kbd>O</kbd></dt><dd>Tweaks panel</dd>
         <dt><kbd>U</kbd></dt><dd>Sound on / off</dd>
         <dt><kbd>P</kbd></dt><dd>Pause</dd>
@@ -218,6 +219,8 @@ kbd{font-family:inherit;font-weight:600;border:1px solid var(--line);border-bott
     <div class="modes" id="acs"></div>
     <div class="sm" style="margin:-6px 0 6px">Graphics <span id="gfxnote"></span></div>
     <div class="modes" id="gfx"><button data-g="full">Full</button><button data-g="lite">Lite</button><button data-g="potato">Potato</button></div>
+    <div class="sm" style="margin:-6px 0 6px">Lives: carry on from where you crashed</div>
+    <div class="modes" id="livespick"><button data-l="0">Off</button><button data-l="3">3</button><button data-l="5">5</button><button data-l="10">10</button><button data-l="inf">Unlimited</button></div>
     <p class="keyline"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly &nbsp; <kbd>R</kbd><kbd>F</kbd> throttle &nbsp; <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> drive &nbsp; <kbd>V</kbd> views &nbsp; <kbd>H</kbd> every control</p>
     <div class="go">Pick a mode, then press Enter</div>
   </div>
@@ -2119,7 +2122,11 @@ function buildBuggy() {
   const wing = sd => { const p = pivot(g, sd * 0.3, 0.9, 0.2);
     mk(loftWing([0, 0.2, 0.4, 0.6, 0.76, 0.86].map(f => sec(sd, f))), wingM, p);
     mk(loftWing([0.86, 0.9, 0.94, 0.97, 0.99, 1].map(f => sec(sd, f))), paint, p);
-    mk(loftWing([0, 0.04, 0.08].map(f => { const q = sec(sd, f); q[1] += 0.004; q[2] -= 0.004; q[3] += 0.008; return q; })), paint, p); return p; };
+    mk(loftWing([0, 0.04, 0.08].map(f => { const q = sec(sd, f); q[1] += 0.004; q[2] -= 0.004; q[3] += 0.008; return q; })), paint, p);
+    // flap: the inboard trailing edge, hinged along the wing and swung down by the render loop
+    const fo = pivot(p, sd * WS * 0.3, 0.105, 0.295), fl = new THREE.Group(); fo.rotation.z = sd * 0.058; fo.add(fl); parts.flaps.push(fl);
+    mk(loftWing([-1, -0.5, 0, 0.5, 1].map(u => { const f = 0.3 + sd * u * 0.2; return [u * WS * 0.2, 0, -0.15 * (f - 0.3) - 0.012, 0.3 * (1 - 0.5 * f) + 0.02, 0.2]; }), 0, 12), paint, fl);
+    return p; };
   const tail = pivot(g, 0, 0.42, 1.2);
   rod(tail, [0, 0, 0], [0, 0.16, 2.3], 0.05, tubeM); rod(tail, [0, 0.16, 2.3], [0, 0.2, 2.75], 0.035, tubeM);
   { const fin = loftWing([[0, 0, 1.55, 1.05, 0.1], [0.45, 0, 1.82, 0.88, 0.1], [0.9, 0, 2.08, 0.72, 0.1], [1.25, 0, 2.28, 0.6, 0.1]], 0); fin.rotateZ(Math.PI / 2); mk(fin, wingM, tail, 0, 0.14, 0);
@@ -2182,15 +2189,15 @@ AIRCRAFT.modelt = { name: 'Model T Flivver', heli: true, car: true, model: MT.g,
   flaps: false, cam: { d: 9, h: 2.8 }, size: 4, eye: new V3(-0.28, 0.82, 0.2), wingCam: new V3(0, 0.75, -1.6),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.4, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.4, debris: [0x0c0c0e, 0xc9a24a, 0xb98a4e] };
-// car on the ground, glider in the air: G grows the wings, T folds them. Long soft springs with heavy damping deep
+// car on the ground, glider in the air: C grows and folds the wings, G / T work the flaps. Long soft springs with heavy damping deep
 // in the travel, so it floats over rough ground and shrugs off landings. Traction is deliberately far better than
 // any real tire (grip, offGrip), the mass is treated as sitting at axle height (cgH) so it cannot trip over that
 // grip, and steerA asks the front wheels for a set cornering force at any speed.
 AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, parts: BG.parts, M: 320, S: 16, I: new V3(380, 520, 300),
   wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.78, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
-  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, wheelR: 0.38, pwr: 150000, accMax: 16, grip: 2.4, offGrip: 1.25, steerA: 48, cgH: 0.72, rollK: 0.012,
+  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.38, pwr: 150000, accMax: 16, grip: 2.4, offGrip: 1.25, steerA: 48, cgH: 0.72, rollK: 0.012,
   hard: hardPts([[0, 0.95, 0.17]]),
-  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: false,
+  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 40, flapSteps: 4, flapCL: 0.9, flapCD: 0.16,
   cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 24, fireScale: 1.2, debris: [0xf26a1b, 0x1b1d20, 0xf4f4f0] };
@@ -2397,7 +2404,38 @@ function spawnAir(pos, dir, speed) {
   prevPos.copy(pos);
   flyCamSet = false;
 }
+// lives: with lives switched on, a crash puts you back where you were a moment before it, for as long as the lives last
+const LIFE_MODES = { drop: 1, pylon: 1, canyon: 1, drive: 1, balloon: 1, truck: 1 }, TRAIL = [];
+let LIVES = 0, trailAt = 0;
+function respawnHere() {
+  const T = game.crashT || game.t, old = TRAIL.filter(e => e.t <= T - 1.2);
+  let e = old[old.length - 1] || TRAIL[0];
+  if (!e) return false;
+  // a car goes back to the last place it had its wheels on dry ground
+  if (AC.car) for (let i = old.length - 1; i >= 0; i--) if (old[i].gnd && !old[i].wet) { e = old[i]; break; }
+  const pos = e.pos.clone(), dir = new V3(0, 0, -1).applyQuaternion(e.q).setY(0);
+  if (dir.lengthSq() < 1e-4) dir.set(0, 0, -1);
+  dir.normalize();
+  const R = Math.hypot(pos.x, pos.z);
+  if (R > 5600) { pos.x *= 5600 / R; pos.z *= 5600 / R; dir.set(-pos.x, 0, -pos.z).normalize(); }
+  const gy = groundAt(pos.x, pos.z, pos.y + 1);
+  if (AC.boat) spawnAir(pos, dir, 0);
+  else if (AC.car && (e.gnd || pos.y - gy < 4)) {
+    pos.y = gy - AC.wheels[0].p.y + 0.05;
+    spawnAir(pos, dir, 0);
+    P.v.set(0, 0, 0); P.throttle = 0; P.thrArm = false; P.wing = P.wingT = 0; P.wheels = AC.wheels.length;
+  } else {
+    pos.y = Math.max(pos.y, hMesh(pos.x, pos.z) + (AC.heli ? 25 : 60));
+    spawnAir(pos, dir, Math.max(e.sp, AC.vSpawn || 0));
+  }
+  TRAIL.length = 0;
+  return true;
+}
 function respawn() {
+  if (LIVES && LIFE_MODES[game.mode]) {
+    if (game.lives > 0 && respawnHere()) { game.lives--; toast(game.lives === Infinity ? 'Back where you crashed' : `Back where you crashed · ${game.lives} ${game.lives === 1 ? 'life' : 'lives'} left`); return; }
+    game.lives = LIVES; TRAIL.length = 0; toast('Out of lives: back to the start');
+  }
   if (game.mode === 'drop') resetPlane();
   else if (game.mode === 'pylon' || game.mode === 'canyon') raceSpawn();
   else if (game.mode === 'deadstick') finishDeadstick(true);
@@ -3113,9 +3151,11 @@ window.addEventListener('keydown', e => {
       const deg = Math.round(P.flapT * (AC.flapMax || 30));
       toast(deg ? `Flaps ${deg}°` : 'Flaps up');
     }
-    if ((e.code === 'KeyG' || e.code === 'KeyT') && AC.wings) { P.wingT = e.code === 'KeyG' ? 1 : 0; toast(P.wingT ? 'Wings out' : 'Wings folded'); }
     if (e.code === 'Slash') { P.trim = 0; toast('Trim neutral'); }
-    if (e.code === 'KeyC') { sightOn = !sightOn; toast(sightOn ? 'Bomb sight on' : 'Bomb sight off, eyeball it'); }
+    if (e.code === 'KeyC') {
+      if (AC.wings) { P.wingT = P.wingT ? 0 : 1; if (!P.wingT) P.flapT = 0; toast(P.wingT ? 'Wings out' : 'Wings folded'); }
+      else { sightOn = !sightOn; toast(sightOn ? 'Bomb sight on' : 'Bomb sight off, eyeball it'); }
+    }
     if (e.code === 'KeyX') { mixOn = !mixOn; toast(mixOn ? 'Aileron-rudder mix on' : 'Mix off, feet on your own'); }
     if (e.code === 'KeyV') {
       view = VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
@@ -3401,7 +3441,7 @@ function stepPlane(dt) {
     contact++; nSum.add(gN);
     const vp = P.v.clone().add(wW.clone().cross(r));
     const vpn = vp.dot(gN);
-    if (!lc && vpn < -(A.car ? 15 : A.hardV || 4.5)) { crash('Hard landing −50'); return; }
+    if (!lc && vpn < -(A.crashV || (A.car ? 15 : A.hardV || 4.5))) { crash('Hard landing −50'); return; }
     wh.cmp = d;
     // k2/c2: stiffer and better damped deep in the travel; bump: softer damping on the way in than on the way out,
     // like an off-road shock, so the wheel gives over a bump and the body does not get kicked
@@ -3503,6 +3543,7 @@ function stepPlane(dt) {
 
 function crash(msg) {
   if (P.crashed) return;
+  game.crashT = game.t;
   audioBoom(AC.fireScale);
   P.crashed = 2.4;
   if (game.mode === 'drop' || game.mode === 'truck') game.score = Math.max(0, game.score - 50);
@@ -3530,6 +3571,7 @@ function startRound() {
   toast(`Round ${game.round}`);
 }
 function startGame() {
+  game.lives = LIVES; TRAIL.length = 0; trailAt = 0;
   pylonGroup.visible = true;
   canyonGroup.visible = true;
   view = 'chase';
@@ -3605,7 +3647,8 @@ function updateHud() {
   $('balls').style.display = (md === 'drop' || md === 'truck') ? 'flex' : 'none';
   $('alt').textContent = Math.max(0, Math.round((P.pos.y - groundAt(P.pos.x, P.pos.z, P.pos.y) - 0.88) * 3.281));
   $('stall').style.visibility = (P.wheels === 0 && !AC.heli && !(AC.wings && P.wing < 0.5) && Math.abs(P.alpha) > AC.aStall && !P.crashed) ? 'visible' : 'hidden';
-  { const deg = Math.round(P.flapT * (AC.flapMax || 30)); $('flaps').textContent = AC.wings ? (P.wingT ? 'Wings out' : 'Wings folded') : AC.flaps ? (deg ? `${AC.flaperon ? 'Flaperons' : 'Flaps'} ${deg}°` : 'Flaps up') : ''; }
+  { const deg = Math.round(P.flapT * (AC.flapMax || 30)); $('lives').textContent = LIVES && LIFE_MODES[game.mode] ? (game.lives === Infinity ? 'Lives: unlimited' : `Lives: ${game.lives}`) : '';
+    $('flaps').textContent = AC.wings ? (P.wingT ? 'Wings out' + (deg ? ` · flaps ${deg}°` : '') : 'Wings folded') : AC.flaps ? (deg ? `${AC.flaperon ? 'Flaperons' : 'Flaps'} ${deg}°` : 'Flaps up') : ''; }
   $('brk').style.visibility = k('KeyB') && P.wheels > 0 && !AC.boat ? 'visible' : 'hidden';
   $('stickpos').hidden = !stickyOn || AC.car || AC.boat;
   if (stickyOn) { const sp = $('stickpos'), d = sp.querySelector('i'), y = sp.querySelector('b'); d.style.left = (50 - STK.r * 42) + '%'; d.style.top = (50 + STK.p * 42) + '%'; y.style.left = (50 - STK.y * 42) + '%'; }
@@ -3744,6 +3787,11 @@ function step(dt) {
     prevPos.copy(P.pos);
     const n = Math.ceil(dt / (1 / 240));
     for (let i = 0; i < n && !P.crashed; i++) stepPlane(dt / n);
+    if (!P.crashed && LIVES && game.t >= trailAt) {
+      trailAt = game.t + 0.25;
+      TRAIL.push({ t: game.t, pos: P.pos.clone(), q: P.q.clone(), sp: P.v.length(), gnd: P.wheels >= 2, wet: waterAt(P.pos.x, P.pos.z) !== null });
+      if (TRAIL.length > 48) TRAIL.shift();
+    }
     if (!P.crashed && pylonHit()) crash('Hit a pylon −50');
     if (!P.crashed && (game.mode === 'pylon' || game.mode === 'canyon')) checkRace();
     if (!P.crashed && game.mode === 'drop') {
@@ -3973,6 +4021,13 @@ document.querySelectorAll('#gfx button').forEach(b => {
     const u = new URL(location.href); u.searchParams.delete('gfx'); location.replace(u.href.split('#')[0]);
   });
 });
+// lives: picked on the menu and remembered
+{
+  let sv = '0'; try { sv = localStorage.getItem('dropzone-lives') || '0'; } catch (e) {}
+  const set = v => { LIVES = v === 'inf' ? Infinity : Math.max(0, parseInt(v, 10) || 0); game.lives = LIVES; document.querySelectorAll('#livespick button').forEach(b => b.classList.toggle('on', b.dataset.l === v)); };
+  set(['0', '3', '5', '10', 'inf'].includes(sv) ? sv : '0');
+  document.querySelectorAll('#livespick button').forEach(b => b.addEventListener('click', () => { b.blur(); set(b.dataset.l); try { localStorage.setItem('dropzone-lives', b.dataset.l); } catch (e) {} }));
+}
 setAircraft(AIRCRAFT[savedAc] ? savedAc : 'kolb');
 setWind(); wind.copy(baseWind);
 renderBalls();
