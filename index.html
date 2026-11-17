@@ -2358,7 +2358,7 @@ AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, par
   wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.9, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
   hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.5, pwr: 400000, accMax: 32, fan: 14, grip: 2.4, offGrip: 1.25, steerA: 60, cgH: 0.72, rollK: 0.012,
   hard: hardPts([[0, 0.95, 0.17]]),
-  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 50, flapSteps: 5, flapCL: 1.125, flapCD: 0.25,
+  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.018, kInd: 0.04, airDrag: 0.35, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 50, flapSteps: 5, flapCL: 1.125, flapCD: 0.25,
   cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 24, fireScale: 1.2, debris: [0xf26a1b, 0x1b1d20, 0xf4f4f0] };
@@ -3688,7 +3688,7 @@ function stepPlane(dt) {
     if (P.wheels >= 2) F.addScaledVector(up, -M * 0.0006 * vf * vf * (A.wings ? 1 - wg : 1));
     // downforce fans: a steady pull into the ground at any speed, for as long as a wheel is touching and the wings are folded
     if (A.fan && P.wheels >= 1) F.addScaledVector(up, -M * A.fan * (1 - wg));
-    if (!A.heli) F.addScaledVector(vaW, -M * (0.004 + 0.0004 * vaW.length()));
+    if (!A.heli) F.addScaledVector(vaW, -M * (0.004 + 0.0004 * vaW.length()) * (A.airDrag !== undefined && !P.wheels ? A.airDrag : 1));
   }
 
   if (A.heli) {
@@ -3742,7 +3742,7 @@ function stepPlane(dt) {
       const liftDir = new V3(1, 0, 0).cross(vh);
       if (liftDir.lengthSq() > 1e-6) liftDir.normalize();
       const qd = 0.5 * RHO * V * V * A.S * (A.wings ? 0.04 + 0.96 * wg : 1), cl =CL(alpha) + P.flap * (A.flapCL || 0.6) * (Math.abs(alpha) < A.aStall ? 1 : 0.5);
-      const cd = A.cd0 + 0.06 * cl * cl + 1.1 * Math.sin(alpha) ** 2 + (A.flapCD || 0.07) * P.flap * P.flap;
+      const cd = A.cd0 + (A.kInd || 0.06) * cl * cl + 1.1 * Math.sin(alpha) ** 2 + (A.flapCD || 0.07) * P.flap * P.flap;
       const fb = liftDir.multiplyScalar(qd * cl).addScaledVector(vh, -qd * cd);
       fb.x -= qd * 0.35 * beta;
       F.add(fb.applyQuaternion(P.q));
