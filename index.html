@@ -2358,7 +2358,7 @@ AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, par
   wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.9, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
   hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.5, pwr: 400000, accMax: 32, fan: 14, grip: 2.4, offGrip: 1.25, steerA: 60, cgH: 0.72, rollK: 0.012,
   hard: hardPts([[0, 0.95, 0.17]]),
-  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.018, kInd: 0.04, airDrag: 0.35, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 50, flapSteps: 5, flapCL: 1.125, flapCD: 0.25,
+  thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.01, kInd: 0.025, airDrag: 0.15, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 50, flapSteps: 5, flapCL: 1.125, flapCD: 0.25,
   cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
   panel: { asi: [250, [0, 50, 100, 150, 200, 250], [[0, 200, '#2fbf5a'], [200, 250, '#e23b3b']]], eng: 'tq' },
   drop: new V3(0, -0.3, 0), spawnBack: 4, vSpawn: 24, fireScale: 1.2, debris: [0xf26a1b, 0x1b1d20, 0xf4f4f0] };
