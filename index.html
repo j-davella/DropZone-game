@@ -2189,18 +2189,18 @@ function buildBuggy() {
   { const s = box(0.26, 0.02, 1.1, white, 0, 0.27, -1.12); s.rotation.x = -0.187; }
   { const s = box(0.36, 0.07, 0.42, dark, 0, 0.33, -0.84); s.rotation.x = -0.187; box(0.3, 0.05, 0.02, rub, 0, 0.35, -1.04); }
   // door panels fill the side out to the fenders between the wheels, with a black rocker under them over the fan pods
-  [-1, 1].forEach(sd => { slab([[-0.4, 0.42], [0.4, 0.42], [0.4, 0.02], [-0.4, 0.02]], 0.2, paint, sd * 0.63); box(0.24, 0.05, 0.82, dark, sd * 0.63, 0.0, 0); });
+  [-1, 1].forEach(sd => { slab([[-0.3, 0.44], [0.3, 0.44], [0.3, 0.02], [-0.3, 0.02]], 0.3, paint, sd * 0.71); box(0.36, 0.05, 0.62, dark, sd * 0.71, 0.0, 0); });
   // door number boards and side stripes
   { const nc = document.createElement('canvas'); nc.width = 128; nc.height = 96; const cx = nc.getContext('2d');
     cx.fillStyle = '#f4f4f0'; cx.fillRect(0, 0, 128, 96); cx.fillStyle = '#1e63c8'; cx.fillRect(0, 0, 128, 10); cx.fillRect(0, 86, 128, 10);
     cx.fillStyle = '#121212'; cx.font = 'bold 72px Arial, sans-serif'; cx.textAlign = 'center'; cx.fillText('77', 64, 76);
     const numM = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(nc), roughness: 0.5 });
-    [-1, 1].forEach(sd => { mk(new THREE.PlaneGeometry(0.42, 0.26), numM, g, sd * 0.77, 0.24, 0.02).rotation.y = sd * Math.PI / 2; }); }
-  [-1, 1].forEach(sd => { box(0.02, 0.04, 0.8, blue, sd * 0.765, 0.08, 0); box(0.02, 0.04, 0.8, blue, sd * 0.765, 0.4, 0); box(0.02, 0.03, 0.78, white, sd * 0.475, 0.55, 0.04); });
+    [-1, 1].forEach(sd => { mk(new THREE.PlaneGeometry(0.4, 0.25), numM, g, sd * 0.9, 0.24, 0).rotation.y = sd * Math.PI / 2; }); }
+  [-1, 1].forEach(sd => { box(0.02, 0.04, 0.6, blue, sd * 0.895, 0.08, 0); box(0.02, 0.04, 0.6, blue, sd * 0.895, 0.41, 0); box(0.02, 0.03, 0.78, white, sd * 0.475, 0.55, 0.04); });
   // box fenders: a deep arch over each wheel and a flat flare on top, with room for the wheel to come up into it
-  { const sh = new THREE.Shape(); sh.absarc(0, 0, 0.62, 0.15, Math.PI - 0.15, false); sh.absarc(0, 0, 0.53, Math.PI - 0.15, 0.15, true);
-    const fg = ext(sh, 0.36, 0.015);
-    [[-1, -0.95], [1, -0.95], [-1, 0.95], [1, 0.95]].forEach(([sd, z]) => { mk(fg, paint, g, sd * 0.74, -0.2, z); box(0.4, 0.04, 0.95, paint, sd * 0.72, 0.4, z); }); }
+  { const sh = new THREE.Shape(); sh.absarc(0, 0, 0.75, 0.12, Math.PI - 0.12, false); sh.absarc(0, 0, 0.65, Math.PI - 0.12, 0.12, true);
+    const fg = ext(sh, 0.44, 0.015);
+    [[-1, -0.95], [1, -0.95], [-1, 0.95], [1, 0.95]].forEach(([sd, z]) => { mk(fg, paint, g, sd * 0.76, -0.2, z); }); }
   // nose: grille, light boxes and a tube pre-runner bumper
   box(0.5, 0.16, 0.03, dark, 0, 0.04, -1.715);
   [-1, 1].forEach(sd => {
@@ -2250,10 +2250,10 @@ function buildBuggy() {
   // long-travel suspension: two parallel arms per corner hinge well inboard under the tub and the render loop swings them by
   // that wheel's compression; the hub is turned back by the same angle, so the wheel stays upright and moves almost
   // straight up and down. Modelled at full droop; the wheel centre sits 0.56 out and 0.3 down from the hinge.
-  const tire = new THREE.LatheGeometry([[0.2, -0.14], [0.33, -0.15], [0.365, -0.115], [0.38, -0.04], [0.38, 0.04], [0.365, 0.115], [0.33, 0.15], [0.2, 0.14]].map(([r, y]) => new THREE.Vector2(r, y)), 22); tire.rotateZ(Math.PI / 2);
-  const rim = new THREE.CylinderGeometry(0.2, 0.2, 0.22, 16); rim.rotateZ(Math.PI / 2);
-  const bead = new THREE.TorusGeometry(0.2, 0.02, 6, 20); bead.rotateY(Math.PI / 2);
-  const knob = new THREE.BoxGeometry(0.27, 0.035, 0.075), spoke = new THREE.BoxGeometry(0.02, 0.36, 0.05);
+  const tire = new THREE.LatheGeometry([[0.26, -0.18], [0.43, -0.19], [0.48, -0.15], [0.5, -0.05], [0.5, 0.05], [0.48, 0.15], [0.43, 0.19], [0.26, 0.18]].map(([r, y]) => new THREE.Vector2(r, y)), 22); tire.rotateZ(Math.PI / 2);
+  const rim = new THREE.CylinderGeometry(0.26, 0.26, 0.3, 18); rim.rotateZ(Math.PI / 2);
+  const bead = new THREE.TorusGeometry(0.26, 0.025, 6, 24); bead.rotateY(Math.PI / 2);
+  const knob = new THREE.BoxGeometry(0.35, 0.045, 0.09), spoke = new THREE.BoxGeometry(0.02, 0.48, 0.06);
   [[-1, -0.95, true], [1, -0.95, true], [-1, 0.95, false], [1, 0.95, false]].forEach(([sd, z, front]) => {
     const leg = pivot(g, sd * 0.2, -0.1, z), W = [sd * 0.56, -0.3, 0];
     [-0.17, 0.17].forEach(dz => { rod(leg, [0, 0.1, dz], [W[0] - sd * 0.06, W[1] + 0.1, 0], 0.02, alu); rod(leg, [0, -0.08, dz], [W[0] - sd * 0.06, W[1] - 0.08, 0], 0.024, alu); });
@@ -2261,10 +2261,10 @@ function buildBuggy() {
     mk(new THREE.CylinderGeometry(0.05, 0.05, 0.62, 12), shock, sk, 0, 0.16, 0); mk(new THREE.CylinderGeometry(0.02, 0.02, 1, 8), alu, sk);
     leg.userData.shock = { m: sk, top: new V3(sd * 0.37, 0.34, z), arm: new V3(sd * 0.4, -0.3, 0) };
     const hub = pivot(leg, W[0], W[1], 0), grp = pivot(hub, 0, 0, 0), spin = new THREE.Group(); grp.add(spin); leg.userData.hub = hub;
-    rod(hub, [-sd * 0.07, -0.13, 0], [-sd * 0.07, 0.15, 0], 0.03, tubeM);
-    mk(tire, rub, spin); mk(rim, alu, spin); mk(bead, blue, spin, sd * 0.11, 0, 0);
-    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, kb = mk(knob, rub, spin, (i % 2 ? 0.02 : -0.02), Math.cos(a) * 0.378, Math.sin(a) * 0.378); kb.rotation.x = a; }
-    for (let i = 0; i < 3; i++) mk(spoke, dark, spin, sd * 0.112, 0, 0).rotation.x = i / 3 * Math.PI;
+    rod(hub, [-sd * 0.21, -0.13, 0], [-sd * 0.21, 0.15, 0], 0.03, tubeM);
+    mk(tire, rub, spin); mk(rim, alu, spin); mk(bead, blue, spin, sd * 0.15, 0, 0);
+    for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, kb = mk(knob, rub, spin, (i % 2 ? 0.025 : -0.025), Math.cos(a) * 0.497, Math.sin(a) * 0.497); kb.rotation.x = a; }
+    for (let i = 0; i < 3; i++) mk(spoke, dark, spin, sd * 0.152, 0, 0).rotation.x = i / 3 * Math.PI;
     parts.wheelSpin.push(spin); if (front) parts.frontSteer.push(grp); parts.legs.push(leg);
   });
   // the glider: two tapered airfoil wings with upswept orange tips and a T-tail on a boom, all scaled from nothing by the render loop
@@ -2351,12 +2351,12 @@ AIRCRAFT.modelt = { name: 'Model T Flivver', heli: true, car: true, model: MT.g,
   drop: new V3(0, -0.4, 0), spawnBack: 4, vSpawn: 15, fireScale: 1.4, debris: [0x0c0c0e, 0xc9a24a, 0xb98a4e] };
 // car on the ground, glider in the air: C grows and folds the wings, G / T work the flaps. Long soft springs with heavy damping deep
 // in the travel, so it floats over rough ground and shrugs off landings. Folded, two fans pull it into the ground (fan) and it has
-// a lot of shove from a standstill (accMax); pwr sets the ~345 km/h top speed. Traction is deliberately far better than
+// a lot of shove from a standstill (accMax); pwr sets the top speed. Traction is deliberately far better than
 // any real tire (grip, offGrip), the mass is treated as sitting at axle height (cgH) so it cannot trip over that
 // grip, and steerA asks the front wheels for a set cornering force at any speed.
 AIRCRAFT.buggy = { name: 'Glide Buggy', car: true, wings: true, model: BG.g, parts: BG.parts, M: 320, S: 16, I: new V3(380, 520, 300),
-  wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.78, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
-  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.38, pwr: 262000, accMax: 27, fan: 14, grip: 2.4, offGrip: 1.25, steerA: 60, cgH: 0.72, rollK: 0.012,
+  wheels: [[-0.76, -0.95, true], [0.76, -0.95, true], [-0.76, 0.95, false], [0.76, 0.95, false]].map(([x, z, f]) => ({ p: new V3(x, -0.9, z), k: 6500, k2: 45000, c: 900, c2: 12000, bump: 0.6, steer: f, front: f })),
+  hardV: 14, gear: BG.parts.legs, gearArm: 0.56, gearL: Math.hypot(0.56, 0.3), gearDrop: 0.3, noFlip: true, crashV: 45, wheelR: 0.5, pwr: 400000, accMax: 32, fan: 14, grip: 2.4, offGrip: 1.25, steerA: 60, cgH: 0.72, rollK: 0.012,
   hard: hardPts([[0, 0.95, 0.17]]),
   thrust: 0, vmax: 60, cl0: 0.3, aStall: 0.27, cd0: 0.03, gn: { elev: 5, ail: 8, rud: 4, stab: 20, beta: 7, damp: [5, 3, 4] }, vref: 22, trim: 0.05, flaps: true, flapMax: 50, flapSteps: 5, flapCL: 1.125, flapCD: 0.25,
   cam: { d: 8, h: 2.4 }, size: 6, eye: new V3(0, 0.7, 0.02), wingCam: new V3(-1.5, 0.9, 0.5),
