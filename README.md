@@ -3,7 +3,7 @@
 A browser flight / driving / boating sim in one HTML file. No build, no install: open `index.html` or play it on GitHub Pages.
 
 ## Vehicles
-Kolb (long STOL wing, tundra tires on sprung bush gear, full-span flaperons to 50°), Extra 300, B-17, UH-60 Black Hawk, Tesla Roadster (drives, loops, thrusters), Model T Flivver (drives, thrusters), GT Coupe (plain fast road car, and the star of Arcade Drift), Glide Buggy (long-travel off-roader, G grows glider wings, T folds them), Hydrofoil.
+Kolb (long STOL wing, tundra tires on sprung bush gear, full-span flaperons to 50°), Extra 300, B-17, UH-60 Black Hawk, Tesla Roadster (drives, loops, thrusters), Model T Flivver (drives, thrusters), GT Coupe (plain fast road car, and the star of Arcade Drift), Glide Buggy (long-travel trophy truck with downforce fans, flaps to 50°, G grows glider wings, T folds them), Hydrofoil.
 
 ## Modes
 1 Drop Zone · 2 Pylon Race · 3 Canyon Run · 4 Balloon Pop · 5 Deadstick · 6 Truck Bomb · 7 Race Track · 8 Power-off 180 · 9 STOL Comp · 0 Freestyle (no clock, no score, go anywhere; Tab opens a map to teleport to any spot or one of nine named places) · Arcade Drift (fake physics, the car cannot die, slide for points)
